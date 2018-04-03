@@ -1,6 +1,5 @@
 .classpath
 .project
-.idea
 bin/
 dist/
 log
