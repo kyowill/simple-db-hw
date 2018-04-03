@@ -34,7 +34,7 @@ public class TupleDesc implements Serializable {
             return fieldName + "(" + fieldType + ")";
         }
     }
-
+    private ArrayList<TDItem> TDItems = new ArrayList<TDItem>();
     /**
      * @return
      *        An iterator which iterates over all the field TDItems
@@ -42,7 +42,7 @@ public class TupleDesc implements Serializable {
      * */
     public Iterator<TDItem> iterator() {
         // some code goes here
-        return null;
+        //return null;
     }
 
     private static final long serialVersionUID = 1L;
