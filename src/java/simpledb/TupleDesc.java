@@ -206,7 +206,24 @@ public class TupleDesc implements Serializable {
 
     public boolean equals(Object o) {
         // some code goes here
-        return false;
+        //return false;
+        TupleDesc spec = (TupleDesc)o;
+        int specLen = spec.numFields();
+        int len = this.numFields();
+        if(len == specLen){
+            for(int i = 0; i < len; ++i){
+                Type specType = spec.getFieldType(i);
+                Type type = this.getFieldType(i);
+                String specName = spec.getFieldName(i);
+                String name = this.getFieldName(i);
+                if(!(specType.name().equals(type.name()) && specName.equals(name))){
+                    return false;
+                }
+            }
+        }else {
+            return false;
+        }
+        return true;
     }
 
     public int hashCode() {
@@ -224,6 +241,14 @@ public class TupleDesc implements Serializable {
      */
     public String toString() {
         // some code goes here
-        return "";
+        //return "";
+        String str = "";
+        int len = this.numFields();
+        for(int i = 0; i < len; ++i){
+            Type type = this.getFieldType(i);
+            String name = this.getFieldName(i);
+            str += type.toString() + "("+ name + ")";
+        }
+        return str;
     }
 }
