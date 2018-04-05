@@ -34,7 +34,7 @@ public class TupleDesc implements Serializable {
             return fieldName + "(" + fieldType + ")";
         }
     }
-    private ArrayList<TDItem> TDItems = new ArrayList<TDItem>();
+    private List<TDItem> TDItems = new ArrayList<TDItem>();
     /**
      * @return
      *        An iterator which iterates over all the field TDItems
@@ -177,8 +177,8 @@ public class TupleDesc implements Serializable {
     public static TupleDesc merge(TupleDesc td1, TupleDesc td2) {
         // some code goes here
         //return null;
-        int len1 = td1.getSize();
-        int len2 = td2.getSize();
+        int len1 = td1.numFields();
+        int len2 = td2.numFields();
         Type[] typeAr = new Type[len1 + len2];
         String[] fieldAr = new String[len1 + len2];
         for(int i = 0; i < len1; ++i){
@@ -187,8 +187,8 @@ public class TupleDesc implements Serializable {
         }
         
         for(int i = 0; i < len2; ++i){
-            typeAr[len1 - 1 + i] = td2.getFieldType(i);
-            fieldAr[len1 - 1 + i] = td2.getFieldName(i);
+            typeAr[len1 + i] = td2.getFieldType(i);
+            fieldAr[len1 + i] = td2.getFieldName(i);
         }
         return new TupleDesc(typeAr, fieldAr);
     }
@@ -206,8 +206,16 @@ public class TupleDesc implements Serializable {
 
     public boolean equals(Object o) {
         // some code goes here
-        //return false;
-        TupleDesc spec = (TupleDesc)o;
+        if(o == null){
+            return false;
+        }
+        TupleDesc spec = null;
+        try {
+            spec = (TupleDesc)o;
+        } catch (Exception e) {
+            // TODO: handle exception
+            return false;
+        }
         int specLen = spec.numFields();
         int len = this.numFields();
         if(len == specLen){
@@ -245,9 +253,7 @@ public class TupleDesc implements Serializable {
         String str = "";
         int len = this.numFields();
         for(int i = 0; i < len; ++i){
-            Type type = this.getFieldType(i);
-            String name = this.getFieldName(i);
-            str += type.toString() + "("+ name + ")";
+            str += this.TDItems.get(i).toString();
         }
         return str;
     }

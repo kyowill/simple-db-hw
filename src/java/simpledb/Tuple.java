@@ -68,7 +68,7 @@ public class Tuple implements Serializable {
      */
     public void setField(int i, Field f) {
         // some code goes here
-        this.data.set(i, f);
+        this.data.add(i, f);
     }
 
     /**
