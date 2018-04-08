@@ -22,6 +22,8 @@ public class HeapPage implements Page {
 	byte[] oldData;
 	private final Byte oldDataLock = new Byte((byte) 0);
 
+	private List<Tuple> validTuples;
+
 	/**
 	 * Create a HeapPage from a set of bytes of data read from disk. The format
 	 * of a HeapPage is a set of header bytes indicating the slots of the page
@@ -308,7 +310,7 @@ public class HeapPage implements Page {
 		// return 0;
 		int sum = 0;
 		for (int i = 0; i < tuples.length; ++i) {
-			if (tuples[i] != null) {
+			if (tuples[i] == null) {
 				sum += 1;
 			}
 		}
@@ -320,8 +322,16 @@ public class HeapPage implements Page {
 	 */
 	public boolean isSlotUsed(int i) {
 		// some code goes here
+		//return false;
+		if(i < 0){
+			return false;
+		}
+		String bits = byteToBit(header[i / 8]);
+		int label = i % 8;
+		if(bits.charAt(7 - label) == '1'){
+			return true;
+		}
 		return false;
-		
 	}
 
 	/**
@@ -339,7 +349,24 @@ public class HeapPage implements Page {
 	 */
 	public Iterator<Tuple> iterator() {
 		// some code goes here
-		return null;
+		//return null;
+		validTuples = new ArrayList<Tuple>();
+		int index = 0;
+		for (int i = 0; i < tuples.length; ++i) {
+			if (tuples[i] != null) {
+				validTuples.add(index, tuples[i]);
+				index ++;
+			}
+		}
+		return validTuples.iterator();
+
 	}
 
+	private String byteToBit(byte b) {
+		return ""
+				+ (byte) ((b >> 7) & 0x1) + (byte) ((b >> 6) & 0x1)
+				+ (byte) ((b >> 5) & 0x1) + (byte) ((b >> 4) & 0x1)
+				+ (byte) ((b >> 3) & 0x1) + (byte) ((b >> 2) & 0x1)
+				+ (byte) ((b >> 1) & 0x1) + (byte) ((b >> 0) & 0x1);
+	}
 }
