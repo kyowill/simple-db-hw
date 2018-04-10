@@ -79,8 +79,8 @@ public class HeapFile implements DbFile {
 		try {
 			bis = new BufferedInputStream(new FileInputStream(hf));
 			byte pageBuf[] = new byte[BufferPool.getPageSize()];
-			if (bis.skip((id.getPageNumber() - 1) * BufferPool.getPageSize()) != (id
-					.getPageNumber() - 1) * BufferPool.getPageSize()) {
+			if (bis.skip((id.getPageNumber()) * BufferPool.getPageSize()) != (id
+					.getPageNumber()) * BufferPool.getPageSize()) {
 				throw new IllegalArgumentException(
 						"Unable to seek to correct place in HeapFile");
 			}
