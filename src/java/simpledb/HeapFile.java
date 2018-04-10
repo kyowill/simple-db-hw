@@ -79,15 +79,18 @@ public class HeapFile implements DbFile {
 		try {
 			bis = new BufferedInputStream(new FileInputStream(hf));
 			byte pageBuf[] = new byte[BufferPool.getPageSize()];
-			if (bis.skip((id.getPageNumber() - 1) * BufferPool.getPageSize()) != (id.getPageNumber() - 1) * BufferPool.getPageSize()) {
-				throw new IllegalArgumentException("Unable to seek to correct place in HeapFile");
+			if (bis.skip((id.getPageNumber() - 1) * BufferPool.getPageSize()) != (id
+					.getPageNumber() - 1) * BufferPool.getPageSize()) {
+				throw new IllegalArgumentException(
+						"Unable to seek to correct place in HeapFile");
 			}
 			int retval = bis.read(pageBuf, 0, BufferPool.getPageSize());
 			if (retval == -1) {
 				throw new IllegalArgumentException("Read past end of table");
 			}
 			if (retval < BufferPool.getPageSize()) {
-				throw new IllegalArgumentException("Unable to read " + BufferPool.getPageSize() + " bytes from HeapFile");
+				throw new IllegalArgumentException("Unable to read "
+						+ BufferPool.getPageSize() + " bytes from HeapFile");
 			}
 			Debug.log(1, "HeapFile.readPage: read page %d", id.getPageNumber());
 			HeapPage page = new HeapPage(id, pageBuf);
@@ -95,7 +98,7 @@ public class HeapFile implements DbFile {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			throw new RuntimeException(e);
-		} finally{
+		} finally {
 			// Close the file on success or error
 			try {
 				if (bis != null)
@@ -117,8 +120,8 @@ public class HeapFile implements DbFile {
 	 */
 	public int numPages() {
 		// some code goes here
-		//return 0;
-		return (int)hf.length() / BufferPool.getPageSize();
+		// return 0;
+		return (int) hf.length() / BufferPool.getPageSize();
 	}
 
 	// see DbFile.java for javadocs
@@ -143,4 +146,62 @@ public class HeapFile implements DbFile {
 		return null;
 	}
 
+	class HeapFileIterator extends AbstractDbFileIterator {
+
+		TransactionId tid = null;
+		HeapFile file = null;
+		Iterator<Tuple> it = null;
+		int cursor = 0;
+
+		public HeapFileIterator(TransactionId tid, HeapFile file) {
+			this.tid = tid;
+			this.file = file;
+		}
+
+		@Override
+		public void open() throws DbException, TransactionAbortedException {
+			// TODO Auto-generated method stub
+			HeapPageId pid = new HeapPageId(file.getId(), cursor);// starts with
+																	// zero
+			HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid,
+					pid, Permissions.READ_ONLY);
+			it = page.iterator();
+		}
+
+		@Override
+		public void rewind() throws DbException, TransactionAbortedException {
+			// TODO Auto-generated method stub
+			close();
+			open();
+		}
+
+		@Override
+		protected Tuple readNext() throws DbException,
+				TransactionAbortedException {
+			// TODO Auto-generated method stub
+			// return null;
+			while (it != null) {
+				while (it.hasNext()) {
+					return it.next();
+				}
+				if (cursor < (file.numPages() - 1)) {
+					HeapPageId pid = new HeapPageId(file.getId(), cursor + 1);
+					HeapPage page = (HeapPage) Database.getBufferPool()
+							.getPage(tid, pid, Permissions.READ_ONLY);
+					it = page.iterator();
+					cursor++;
+				} else {
+					return null;
+				}
+			}
+			return null;
+		}
+
+		public void close() {
+			super.close();
+			it = null;
+			cursor = 0;
+		}
+
+	}
 }
