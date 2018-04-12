@@ -145,11 +145,7 @@ public class HeapFile implements DbFile {
 	public DbFileIterator iterator(TransactionId tid) {
 		// some code goes here
 		//return null;
-		if(iterator != null){
-			return iterator;
-		}
-		iterator = new HeapFileIterator(tid, this);
-        return iterator;
+		return new HeapFileIterator(tid, this);
 	}
 
 	class HeapFileIterator extends AbstractDbFileIterator {
