@@ -116,13 +116,15 @@ public class BufferPool {
 			throws TransactionAbortedException, DbException {
 		// some code goes here
 		// return null;
-		Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
-				.readPage(pid);
+		
+
 		Buffer buf = null;
 		if (this.buffers.get(pid) == null) {
 			if (this.buffers.size() == numPages) {
 				throw new DbException("buffer pool is full!");
 			}
+			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
+					.readPage(pid);
 			buf = new Buffer(tid, page, perm);
 			this.buffers.put(pid, buf);
 			return page;

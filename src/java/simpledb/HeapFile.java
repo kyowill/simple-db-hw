@@ -18,7 +18,7 @@ public class HeapFile implements DbFile {
 	private final File hf;
 	private final TupleDesc td;
 	private final int tableid;
-
+	private DbFileIterator iterator;
 	/**
 	 * Constructs a heap file backed by the specified file.
 	 *
@@ -31,6 +31,7 @@ public class HeapFile implements DbFile {
 		this.hf = f;
 		this.td = td;
 		this.tableid = f.getAbsoluteFile().hashCode();
+		iterator = null;
 	}
 
 	/**
@@ -144,7 +145,11 @@ public class HeapFile implements DbFile {
 	public DbFileIterator iterator(TransactionId tid) {
 		// some code goes here
 		//return null;
-        return new HeapFileIterator(tid, new HeapFile(hf, td));
+		if(iterator != null){
+			return iterator;
+		}
+		iterator = new HeapFileIterator(tid, this);
+        return iterator;
 	}
 
 	class HeapFileIterator extends AbstractDbFileIterator {
