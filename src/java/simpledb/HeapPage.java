@@ -93,7 +93,7 @@ public class HeapPage implements Page {
 
         // some code goes here
         // return 0;
-        return (int) Math.ceil(getNumTuples() / 8);
+        return (int) Math.ceil((float)getNumTuples() / 8);
     }
 
     /**
@@ -322,10 +322,13 @@ public class HeapPage implements Page {
         if (i < 0) {
             return false;
         }
+
         String bits = byteToBit(header[i / 8]);
+
         int label = i % 8;
         if (bits.charAt(7 - label) == '1') {
             return true;
+
         }
         return false;
     }
