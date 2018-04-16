@@ -2,13 +2,19 @@ package simpledb;
 
 import java.util.*;
 
+import com.sun.javafx.font.t2k.T2KFactory;
+
 /**
  * The Join operator implements the relational join operation.
  */
 public class Join extends Operator {
 
     private static final long serialVersionUID = 1L;
-
+    private JoinPredicate pred;
+    private OpIterator child1;
+    private OpIterator child2;
+    private Tuple cursor1;
+    private Tuple cursor2;
     /**
      * Constructor. Accepts two children to join and the predicate to join them
      * on
@@ -22,11 +28,17 @@ public class Join extends Operator {
      */
     public Join(JoinPredicate p, OpIterator child1, OpIterator child2) {
         // some code goes here
+    	pred = p;
+    	this.child1 = child1;
+    	this.child2 = child2;
+    	cursor1 = null;
+    	cursor2 = null;
     }
 
     public JoinPredicate getJoinPredicate() {
         // some code goes here
-        return null;
+        //return null;
+    	return pred;
     }
 
     /**
@@ -36,7 +48,8 @@ public class Join extends Operator {
      * */
     public String getJoinField1Name() {
         // some code goes here
-        return null;
+        //return null;
+    	return child1.getTupleDesc().getFieldName(pred.getField1());
     }
 
     /**
@@ -46,7 +59,8 @@ public class Join extends Operator {
      * */
     public String getJoinField2Name() {
         // some code goes here
-        return null;
+        //return null;
+    	return child2.getTupleDesc().getFieldName(pred.getField2());
     }
 
     /**
@@ -55,20 +69,33 @@ public class Join extends Operator {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        //return null;
+    	return TupleDesc.merge(child1.getTupleDesc(), child2.getTupleDesc());
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
+    	super.open();
+    	child1.open();
+    	child2.open();
     }
 
     public void close() {
         // some code goes here
+    	super.close();
+    	child1.close();
+    	cursor1 = null;
+    	child2.close();
+    	cursor2 = null;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
+    	child1.rewind();
+    	cursor1 = null;
+    	child2.rewind();
+    	cursor2 = null;
     }
 
     /**
@@ -91,18 +118,71 @@ public class Join extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        //return null;
+    	//cursor1, cursor2 never be null unless "open" or "rewind"   	
+    	while(child1.hasNext()){
+    		if(cursor1 == null){
+    			cursor1 = child1.next();
+    		}
+    		Tuple t1 = cursor1;
+    		while(child2.hasNext()){
+    			cursor2 = child2.next();
+    			Tuple t2 = cursor2;
+        		if(pred.filter(t1, t2)){
+        			return joinTuple(t1, t2);
+        		}
+    		}
+    		child2.rewind();
+    		cursor1 = child1.next();
+    	}
+/*    	while(child1.next())
+    	Tuple t1 = cursor1;
+		while(child2.hasNext()){
+			cursor2 = child2.next();
+			Tuple t2 = cursor2;
+    		if(pred.filter(t1, t2)){
+    			return joinTuple(t1, t2);
+    		}
+		}*/
+    	
+    	return null;
     }
 
     @Override
     public OpIterator[] getChildren() {
         // some code goes here
-        return null;
+        //return null;
+    	return new OpIterator[]{child1, child2}; 
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
         // some code goes here
+    	child1 = children[0];
+    	child2 = children[1];
+    }
+    
+    private Tuple joinTuple(Tuple t1, Tuple t2){
+    	if((t1 == null) || (t2 == null)){
+    		return null;
+    	}
+		TupleDesc td = getTupleDesc();
+		Iterator<Field> it1 = t1.fields();
+		Iterator<Field> it2 = t2.fields();
+		Tuple m = new Tuple(td);
+		int index = 0;
+		while(it1.hasNext()){
+			Field tmp = it1.next();
+			m.setField(index, tmp);
+			index++;
+		}
+		
+		while(it2.hasNext()){
+			Field tmp = it2.next();
+			m.setField(index, tmp);
+			index++;   				
+		}
+		return m;
     }
 
 }
