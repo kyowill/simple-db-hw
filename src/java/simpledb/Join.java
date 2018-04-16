@@ -14,7 +14,6 @@ public class Join extends Operator {
     private OpIterator child1;
     private OpIterator child2;
     private Tuple cursor1;
-    private Tuple cursor2;
     /**
      * Constructor. Accepts two children to join and the predicate to join them
      * on
@@ -32,7 +31,7 @@ public class Join extends Operator {
     	this.child1 = child1;
     	this.child2 = child2;
     	cursor1 = null;
-    	cursor2 = null;
+
     }
 
     public JoinPredicate getJoinPredicate() {
@@ -87,7 +86,6 @@ public class Join extends Operator {
     	child1.close();
     	cursor1 = null;
     	child2.close();
-    	cursor2 = null;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
@@ -95,7 +93,6 @@ public class Join extends Operator {
     	child1.rewind();
     	cursor1 = null;
     	child2.rewind();
-    	cursor2 = null;
     }
 
     /**
@@ -119,31 +116,18 @@ public class Join extends Operator {
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
         //return null;
-    	//cursor1, cursor2 never be null unless "open" or "rewind"   	
-    	while(child1.hasNext()){
-    		if(cursor1 == null){
-    			cursor1 = child1.next();
-    		}
-    		Tuple t1 = cursor1;
+    	while(child1.hasNext() || (cursor1 != null)){
+    		Tuple t1 = (cursor1 == null) ? child1.next() : cursor1;
     		while(child2.hasNext()){
-    			cursor2 = child2.next();
-    			Tuple t2 = cursor2;
+    			Tuple t2 = child2.next();
         		if(pred.filter(t1, t2)){
+        			cursor1 = t1;
         			return joinTuple(t1, t2);
         		}
     		}
     		child2.rewind();
-    		cursor1 = child1.next();
+    		cursor1 = null;
     	}
-/*    	while(child1.next())
-    	Tuple t1 = cursor1;
-		while(child2.hasNext()){
-			cursor2 = child2.next();
-			Tuple t2 = cursor2;
-    		if(pred.filter(t1, t2)){
-    			return joinTuple(t1, t2);
-    		}
-		}*/
     	
     	return null;
     }
