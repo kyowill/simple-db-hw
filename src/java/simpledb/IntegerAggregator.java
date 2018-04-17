@@ -1,5 +1,9 @@
 package simpledb;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Knows how to compute some aggregate over a set of IntFields.
  */
@@ -10,6 +14,7 @@ public class IntegerAggregator implements Aggregator {
     private Type gbfieldtype;
     private int afield;
     private Op what;
+    private Map<Integer, List<Integer>> groups;
     /**
      * Aggregate constructor
      * 
@@ -31,6 +36,7 @@ public class IntegerAggregator implements Aggregator {
         this.gbfieldtype = gbfieldtype;
         this.afield = afield;
         this.what = what;
+        groups = new HashMap<Integer, List<Integer>>();
     }
 
     /**
