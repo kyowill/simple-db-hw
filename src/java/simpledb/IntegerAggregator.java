@@ -1,6 +1,9 @@
 package simpledb;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +17,9 @@ public class IntegerAggregator implements Aggregator {
     private Type gbfieldtype;
     private int afield;
     private Op what;
-    private Map<Integer, List<Integer>> groups;
+    private Map<Field, List<Integer>> groups;
+    private Map<Field, Tuple> results;
+    private TupleDesc td;
     /**
      * Aggregate constructor
      * 
@@ -36,7 +41,15 @@ public class IntegerAggregator implements Aggregator {
         this.gbfieldtype = gbfieldtype;
         this.afield = afield;
         this.what = what;
-        groups = new HashMap<Integer, List<Integer>>();
+        groups = new HashMap<Field, List<Integer>>();
+        results = new HashMap<Field, Tuple>();
+        Type[] types;
+        if(gbfield == Aggregator.NO_GROUPING){
+            types = new Type[]{Type.INT_TYPE};
+        }else{
+            types = new Type[]{gbfieldtype, Type.INT_TYPE};
+        }
+        td = new TupleDesc(types);
     }
 
     /**
@@ -48,7 +61,22 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
-
+        Field key = tup.getField(gbfield);
+        Integer val = tup.getField(afield).hashCode();
+        groups.get(key).add(val);
+        Iterator<Integer> iter = groups.get(key).iterator();
+        Integer aggregateVal = doAggregate(what.toString(), iter);
+        Tuple t = new Tuple(td);
+        if(gbfield == Aggregator.NO_GROUPING){
+            Field f1 = new IntField(aggregateVal);
+            t.setField(0, f1);
+        }else{
+            Field f1 = tup.getField(gbfield);
+            Field f2 = new IntField(aggregateVal);
+            t.setField(0, f1);
+            t.setField(1, f2);
+        }
+        results.put(key, t);
     }
 
     /**
@@ -61,8 +89,67 @@ public class IntegerAggregator implements Aggregator {
      */
     public OpIterator iterator() {
         // some code goes here
-        throw new
-        UnsupportedOperationException("please implement me for lab2");
+        //throw new
+        //UnsupportedOperationException("please implement me for lab2");
+        return new TupleIterator(td, results.values());
     }
 
+    private Integer doAggregate(String type, Iterator<Integer> it){
+        if(type.equals("min")){
+            Integer min = null;
+            while (it.hasNext()){
+                Integer next = it.next();
+                if(min == null){
+                    min = next;
+                    continue;
+                }
+                int a = min.intValue();
+                int b = next.intValue();
+                if(a > b){
+                    min = next;
+                }
+            }
+            return min;
+        }else if(type.equals("max")){
+            Integer max = null;
+            while (it.hasNext()){
+                Integer next = it.next();
+                if(max == null){
+                    max = next;
+                    continue;
+                }
+                int a = max.intValue();
+                int b = next.intValue();
+                if(a < b){
+                    max = next;
+                }
+            }
+            return max;
+        }else if(type.equals("sum")){
+            Integer sum = 0;
+            while (it.hasNext()){
+                Integer next = it.next();
+                sum += next;
+            }
+            return sum;
+        }else if(type.equals("count")){
+            Integer cnt = 0;
+            while (it.hasNext()){
+                Integer next = it.next();
+                cnt += 1;
+            }
+            return cnt;
+        }else if(type.equals("avg")){
+            Integer sum = 0;
+            Integer cnt = 0;
+            while (it.hasNext()){
+                Integer next = it.next();
+                sum += next;
+                cnt += 1;
+            }
+            Integer avg = sum / cnt;
+            return avg;
+        }
+        throw new UnsupportedOperationException("operator illegal!");
+    }
 }
