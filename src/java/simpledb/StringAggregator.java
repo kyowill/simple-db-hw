@@ -1,9 +1,6 @@
 package simpledb;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Knows how to compute some aggregate over a set of StringFields.
@@ -37,9 +34,9 @@ public class StringAggregator implements Aggregator {
         results = new HashMap<Field, Tuple>();
         Type[] types;
         if(gbfield == Aggregator.NO_GROUPING){
-            types = new Type[]{Type.STRING_TYPE};
+            types = new Type[]{Type.INT_TYPE};
         }else{
-            types = new Type[]{gbfieldtype, Type.STRING_TYPE};
+            types = new Type[]{gbfieldtype, Type.INT_TYPE};
         }
         td = new TupleDesc(types);
     }
@@ -52,6 +49,9 @@ public class StringAggregator implements Aggregator {
         // some code goes here
         Field key = tup.getField(gbfield);
         String val = tup.getField(afield).toString();
+        if(groups.get(key) == null){
+            groups.put(key, new LinkedList<String>());
+        }
         groups.get(key).add(val);
         Iterator<String> iter = groups.get(key).iterator();
         Integer aggregateVal = doAggregate(what.toString(), iter);

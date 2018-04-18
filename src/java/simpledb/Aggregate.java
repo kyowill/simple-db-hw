@@ -14,7 +14,9 @@ public class Aggregate extends Operator {
 	private int afield;
 	private int gfield;
 	private Aggregator.Op aop;
-
+	private Aggregator agg;
+	private OpIterator results;
+	private TupleDesc td;
 	/**
 	 * Constructor.
 	 * 
@@ -39,6 +41,23 @@ public class Aggregate extends Operator {
 		this.afield = afield;
 		this.gfield = gfield;
 		this.aop = aop;
+		TupleDesc td = child.getTupleDesc();
+		if(td.getFieldType(afield) == Type.INT_TYPE){
+			agg = new IntegerAggregator(gfield, td.getFieldType(gfield), afield, aop);
+		}else{
+			agg = new StringAggregator(gfield, td.getFieldType(gfield), afield, aop);
+		}
+		Type[] typeAr;
+		String[] nameAr;
+		if(gfield == Aggregator.NO_GROUPING){
+			typeAr = new Type[]{Type.INT_TYPE};
+			nameAr = new String[]{aggregateFieldName()};
+		}else{
+			typeAr = new Type[]{child.getTupleDesc().getFieldType(gfield), Type.INT_TYPE};
+			nameAr = new String[]{groupFieldName(), aggregateFieldName()};
+		}
+
+		this.td = new TupleDesc(typeAr, nameAr);
 	}
 
 	/**
@@ -82,7 +101,7 @@ public class Aggregate extends Operator {
 	public String aggregateFieldName() {
 		// some code goes here
 		//return null;
-		return child.getTupleDesc().getFieldName(afield);
+		return agg.toString() + "(" + aop.toString() + ")" + "(" + child.getTupleDesc().getFieldName(afield) + ")";
 	}
 
 	/**
@@ -103,6 +122,8 @@ public class Aggregate extends Operator {
 		// some code goes here
 		super.open();
 		child.open();
+		results = doAggregate();
+		results.open();
 	}
 
 	/**
@@ -114,11 +135,14 @@ public class Aggregate extends Operator {
 	 */
 	protected Tuple fetchNext() throws TransactionAbortedException, DbException {
 		// some code goes here
-		return null;
+		//return null;
+		return results.next();
 	}
 
 	public void rewind() throws DbException, TransactionAbortedException {
 		// some code goes here
+		results.rewind();
+		child.rewind();
 	}
 
 	/**
@@ -134,22 +158,35 @@ public class Aggregate extends Operator {
 	 */
 	public TupleDesc getTupleDesc() {
 		// some code goes here
-		return null;
+		//return null;
+		return td;
 	}
 
 	public void close() {
 		// some code goes here
+		super.close();
+		results.close();
+		child.close();
 	}
 
 	@Override
 	public OpIterator[] getChildren() {
 		// some code goes here
-		return null;
+		//return null;
+		return new OpIterator[]{child};
 	}
 
 	@Override
 	public void setChildren(OpIterator[] children) {
 		// some code goes here
+		child = children[0];
 	}
 
+	private OpIterator doAggregate() throws DbException, TransactionAbortedException, NoSuchElementException{
+		while (child.hasNext()){
+			Tuple t = child.next();
+			agg.mergeTupleIntoGroup(t);
+		}
+		return agg.iterator();
+	}
 }

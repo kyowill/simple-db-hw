@@ -2,10 +2,7 @@ package simpledb;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Knows how to compute some aggregate over a set of IntFields.
@@ -63,6 +60,9 @@ public class IntegerAggregator implements Aggregator {
         // some code goes here
         Field key = tup.getField(gbfield);
         Integer val = tup.getField(afield).hashCode();
+        if(groups.get(key) == null){
+            groups.put(key, new LinkedList<Integer>());
+        }
         groups.get(key).add(val);
         Iterator<Integer> iter = groups.get(key).iterator();
         Integer aggregateVal = doAggregate(what.toString(), iter);
