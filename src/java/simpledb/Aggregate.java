@@ -58,6 +58,7 @@ public class Aggregate extends Operator {
 		}
 
 		this.td = new TupleDesc(typeAr, nameAr);
+
 	}
 
 	/**
@@ -121,8 +122,9 @@ public class Aggregate extends Operator {
 			TransactionAbortedException {
 		// some code goes here
 		super.open();
-		child.open();
-		results = doAggregate();
+		if(results == null){
+			doAggregate();
+		}
 		results.open();
 	}
 
@@ -142,7 +144,6 @@ public class Aggregate extends Operator {
 	public void rewind() throws DbException, TransactionAbortedException {
 		// some code goes here
 		results.rewind();
-		child.rewind();
 	}
 
 	/**
@@ -166,7 +167,6 @@ public class Aggregate extends Operator {
 		// some code goes here
 		super.close();
 		results.close();
-		child.close();
 	}
 
 	@Override
@@ -182,11 +182,14 @@ public class Aggregate extends Operator {
 		child = children[0];
 	}
 
-	private OpIterator doAggregate() throws DbException, TransactionAbortedException, NoSuchElementException{
+	private void doAggregate() throws NoSuchElementException, DbException, TransactionAbortedException{
 		while (child.hasNext()){
 			Tuple t = child.next();
 			agg.mergeTupleIntoGroup(t);
 		}
-		return agg.iterator();
+		results = agg.iterator();
+		if(!results.hasNext()){
+			System.out.println("no next");
+		}
 	}
 }
