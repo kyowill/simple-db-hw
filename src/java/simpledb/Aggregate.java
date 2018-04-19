@@ -102,7 +102,7 @@ public class Aggregate extends Operator {
 	public String aggregateFieldName() {
 		// some code goes here
 		//return null;
-		return agg.toString() + "(" + aop.toString() + ")" + "(" + child.getTupleDesc().getFieldName(afield) + ")";
+		return child.getTupleDesc().getFieldName(afield);
 	}
 
 	/**
@@ -138,7 +138,10 @@ public class Aggregate extends Operator {
 	protected Tuple fetchNext() throws TransactionAbortedException, DbException {
 		// some code goes here
 		//return null;
-		return results.next();
+		if(results.hasNext()){
+			return results.next();
+		}
+		return null;
 	}
 
 	public void rewind() throws DbException, TransactionAbortedException {
@@ -188,8 +191,5 @@ public class Aggregate extends Operator {
 			agg.mergeTupleIntoGroup(t);
 		}
 		results = agg.iterator();
-		if(!results.hasNext()){
-			System.out.println("no next");
-		}
 	}
 }
