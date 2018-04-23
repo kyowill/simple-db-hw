@@ -47,7 +47,12 @@ public class StringAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
-        Field key = tup.getField(gbfield);
+        Field key = null;
+        if(gbfield != Aggregator.NO_GROUPING){
+            key = tup.getField(gbfield);
+        }else{
+            key = new StringField("-1", 2);
+        }
         String val = tup.getField(afield).toString();
         if(groups.get(key) == null){
             groups.put(key, new LinkedList<String>());

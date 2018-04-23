@@ -58,7 +58,12 @@ public class IntegerAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
-        Field key = tup.getField(gbfield);
+        Field key = null;
+        if(gbfield != Aggregator.NO_GROUPING){
+            key = tup.getField(gbfield);
+        }else{
+            key = new IntField(-1);
+        }
         Integer val = tup.getField(afield).hashCode();
         if(groups.get(key) == null){
             groups.put(key, new LinkedList<Integer>());

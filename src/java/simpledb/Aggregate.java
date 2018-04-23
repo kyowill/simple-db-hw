@@ -42,10 +42,14 @@ public class Aggregate extends Operator {
 		this.gfield = gfield;
 		this.aop = aop;
 		TupleDesc td = child.getTupleDesc();
+		Type gbtype = null;
+		if(gfield != Aggregator.NO_GROUPING){
+			gbtype = td.getFieldType(gfield);
+		}
 		if(td.getFieldType(afield) == Type.INT_TYPE){
-			agg = new IntegerAggregator(gfield, td.getFieldType(gfield), afield, aop);
+			agg = new IntegerAggregator(gfield, gbtype, afield, aop);
 		}else{
-			agg = new StringAggregator(gfield, td.getFieldType(gfield), afield, aop);
+			agg = new StringAggregator(gfield, gbtype, afield, aop);
 		}
 		Type[] typeAr;
 		String[] nameAr;
@@ -122,6 +126,7 @@ public class Aggregate extends Operator {
 			TransactionAbortedException {
 		// some code goes here
 		super.open();
+		child.open();
 		if(results == null){
 			doAggregate();
 		}
@@ -170,6 +175,7 @@ public class Aggregate extends Operator {
 		// some code goes here
 		super.close();
 		results.close();
+		child.close();
 	}
 
 	@Override
