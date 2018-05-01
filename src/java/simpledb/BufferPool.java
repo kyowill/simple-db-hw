@@ -1,6 +1,8 @@
 package simpledb;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -208,6 +210,18 @@ public class BufferPool {
 			throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
 		// not necessary for lab1
+		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
+		Iterator<Page> it = arrayList.iterator();
+		while(it.hasNext()){
+			Page nextPage = it.next();
+			Buffer buffer = buffers.get(nextPage.getId());
+			if(buffer == null){
+				buffer = new Buffer(tid, nextPage, Permissions.READ_WRITE);
+				buffers.put(nextPage.getId(), buffer);
+			}
+			buffer.accessBuffer(tid, Permissions.READ_WRITE);
+			nextPage.markDirty(true, tid);
+		}	
 	}
 
 	/**
@@ -229,6 +243,21 @@ public class BufferPool {
 			IOException, TransactionAbortedException {
 		// some code goes here
 		// not necessary for lab1
+		RecordId rid = t.getRecordId();
+		PageId pid = rid.getPageId();
+		int tableId = pid.getTableId();
+		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
+		Iterator<Page> it = arrayList.iterator();
+		while(it.hasNext()){
+			Page nextPage = it.next();
+			Buffer buffer = buffers.get(nextPage.getId());
+			if(buffer == null){
+				buffer = new Buffer(tid, nextPage, Permissions.READ_WRITE);
+				buffers.put(nextPage.getId(), buffer);
+			}
+			buffer.accessBuffer(tid, Permissions.READ_WRITE);
+			nextPage.markDirty(true, tid);
+		}	
 	}
 
 	/**

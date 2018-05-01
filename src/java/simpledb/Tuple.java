@@ -17,6 +17,7 @@ public class Tuple implements Serializable {
 
     private TupleDesc td = null;
     private List<Field> data = null;
+    private RecordId rid = null;
     /**
      * Create a new tuple with the specified schema (type).
      *
@@ -45,7 +46,8 @@ public class Tuple implements Serializable {
      */
     public RecordId getRecordId() {
         // some code goes here
-        return null;
+        //return null;
+    	return rid;
     }
 
     /**
@@ -56,6 +58,7 @@ public class Tuple implements Serializable {
      */
     public void setRecordId(RecordId rid) {
         // some code goes here
+    	this.rid = rid;
     }
 
     /**

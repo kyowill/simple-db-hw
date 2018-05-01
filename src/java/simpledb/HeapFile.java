@@ -3,6 +3,9 @@ package simpledb;
 import java.io.*;
 import java.util.*;
 
+import simpledb.BufferPool.Buffer;
+
+
 /**
  * HeapFile is an implementation of a DbFile that stores a collection of tuples
  * in no particular order. Tuples are stored on pages, each of which is a fixed
@@ -19,6 +22,8 @@ public class HeapFile implements DbFile {
 	private final TupleDesc td;
 	private final int tableid;
 	private DbFileIterator iterator;
+	private Object lock = new Object();
+	private HashMap<HeapPageId, HeapPage> nonpersistent = new HashMap<HeapPageId, HeapPage>();;
 	/**
 	 * Constructs a heap file backed by the specified file.
 	 *
@@ -122,23 +127,65 @@ public class HeapFile implements DbFile {
 	public int numPages() {
 		// some code goes here
 		// return 0;
-		return (int) hf.length() / BufferPool.getPageSize();
+		//(int) hf.length() / BufferPool.getPageSize();
+		return nonpersistent.size() + (int) Math.ceil((float)hf.length() / BufferPool.getPageSize());
 	}
 
 	// see DbFile.java for javadocs
 	public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
 			throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
-		return null;
+		//return null;
 		// not necessary for lab1
+		int cursor = 0;
+		synchronized(lock){
+			while(true){
+				HeapPageId pid = new HeapPageId(getId(), cursor);
+				HeapPage page = null;
+				try{
+					page = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+				}catch(Exception e){
+					if(nonpersistent.containsKey(pid)){
+						page = nonpersistent.get(pid);
+					}else{
+						byte pageBuf[] = new byte[BufferPool.getPageSize()];
+						page = new HeapPage(pid, pageBuf);
+						nonpersistent.put(pid, page);
+					}
+				}
+				if(page.getNumEmptySlots() > 0){
+					page.insertTuple(t);
+					ArrayList<Page> arrayList = new ArrayList<Page>();
+					arrayList.add(page);
+					return arrayList;
+				}
+				cursor += 1;
+			}
+		}
+		//throw new DbException("tuple cannot be added!");
 	}
 
 	// see DbFile.java for javadocs
 	public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t)
 			throws DbException, TransactionAbortedException {
 		// some code goes here
-		return null;
+		//return null;
 		// not necessary for lab1
+		synchronized (lock) {
+			RecordId rid = t.getRecordId();
+			HeapPageId pid = (HeapPageId) rid.getPageId();
+			HeapPage page = null;
+			try {
+				page = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+			} catch (Exception e) {
+				// TODO: handle exception
+				page = nonpersistent.get(pid);
+			}
+			page.deleteTuple(t);
+			ArrayList<Page> arrayList = new ArrayList<Page>();
+			arrayList.add(page);
+			return arrayList;			
+		}
 	}
 
 	// see DbFile.java for javadocs
