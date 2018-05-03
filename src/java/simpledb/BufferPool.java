@@ -123,7 +123,8 @@ public class BufferPool {
 		Buffer buf = null;
 		if (this.buffers.get(pid) == null) {
 			if (this.buffers.size() == numPages) {
-				throw new DbException("buffer pool is full!");
+				//throw new DbException("buffer pool is full!");//lab 1.x
+				evictPage();//lab 2.5
 			}
 			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
 					.readPage(pid);
@@ -268,7 +269,11 @@ public class BufferPool {
 	public synchronized void flushAllPages() throws IOException {
 		// some code goes here
 		// not necessary for lab1
-
+		PageId pid = null;
+		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {
+			pid = entry.getKey();
+			flushPage(entry.getKey());		
+		}
 	}
 
 	/**
@@ -282,6 +287,7 @@ public class BufferPool {
 	public synchronized void discardPage(PageId pid) {
 		// some code goes here
 		// not necessary for lab1
+		buffers.remove(pid);
 	}
 
 	/**
@@ -293,6 +299,14 @@ public class BufferPool {
 	private synchronized void flushPage(PageId pid) throws IOException {
 		// some code goes here
 		// not necessary for lab1
+		Buffer buf = buffers.get(pid);
+		if(buf == null){
+			throw new IOException("page not exist in bufferpool");
+		}
+		Page pg = buf.getPage();
+		Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(pg);
+		//mark not dirty
+		pg.markDirty(false, buf.getTransactionId());
 	}
 
 	/**
@@ -306,10 +320,25 @@ public class BufferPool {
 	/**
 	 * Discards a page from the buffer pool. Flushes the page to disk to ensure
 	 * dirty pages are updated on disk.
+	 * @throws  
 	 */
 	private synchronized void evictPage() throws DbException {
 		// some code goes here
 		// not necessary for lab1
+		PageId pid = null; 
+		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {  
+			pid = entry.getKey();
+			break;
+		}
+		
+		try {
+			flushPage(pid);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			throw new DbException("can not flush page" + pid.toString());
+		}
+		buffers.remove(pid);
 	}
 
 }
