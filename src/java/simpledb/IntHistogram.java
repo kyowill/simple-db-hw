@@ -2,15 +2,15 @@ package simpledb;
 
 import java.util.HashMap;
 
+
 /** A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
 
-	private int buckets;
 	private int min;
 	private int max;
-	private int interval;
-	private HashMap<Integer, Integer> histogram;
+	private double width;
+	private int[] histogram;
 	private int ntups;
     /**
      * Create a new IntHistogram.
@@ -30,17 +30,11 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
     	// some code goes here
-    	this.buckets = buckets;
+    	this.histogram = new int[Math.min(buckets, max-min+1)];
     	this.min = min;
-    	this.max = max;
-    	this.interval = (int) Math.ceil((double)(max - min + 1) / buckets);
+    	this.max = max + 1;
+    	this.width = (1.0 + max- min)/this.histogram.length;;
     	this.ntups = 0;
-    	histogram = new HashMap<Integer, Integer>();
-    	int key = 0;
-    	while(key < buckets){
-    		histogram.put(key, 0);
-    		key += 1;
-    	}
     }
 
     /**
@@ -49,24 +43,10 @@ public class IntHistogram {
      */
     public void addValue(int v) {
     	// some code goes here
-    	
-    	int key = (int) Math.ceil((double)(v - min + 1) / interval) - 1;
-/*    	HashMap<Integer, Integer> map = histogram.get(key);
-    	if(map == null){
-    		System.out.println("add value error!");
-    		return;
-    	}
-    	
-    	Integer val = map.get(v);
-    	if(val != null){
-    		map.put(v, val.intValue() + 1);
-    		//System.out.println("+1");
-    	}else{
-    		map.put(v, 1);
-    	}*/
-    	Integer val = histogram.get(key);
-    	histogram.put(key, val.intValue() + 1);
-    	ntups += 1;
+        if (v >= min && v < max) {
+            histogram[getIndex(v)]++;
+            ntups++;
+        }
     }
 
     /**
@@ -82,105 +62,38 @@ public class IntHistogram {
     public double estimateSelectivity(Predicate.Op op, int v) {
 
     	// some code goes here
-        //return -1.0;
-/*    	if(v < min){
-    		v = min;
-    	}
-    	if(v > max){
-    		v = max;
-    	}*/
-    	int key = (int) Math.ceil((double)(v - min + 1) / interval) - 1;
-    	
-    	if(op.toString().equals("=")){
-    		if((v < min) || (v > max)){
-    			return 0;
-    		}
-    		double h = (double) histogram.get(key).intValue();
-        	double w = (double) interval;
-        	return (h / w) / ntups;
-    	}else if(op.toString().equals(">")){
-    		if(v >= max){
-    			return 0;
-    		}
-    		if(v < min ){
-    			return 1.0;
-    		}
-    		int right = min + (key + 1) * interval;
-    		int part = (right - v - 1) / interval;
-    		int h = histogram.get(key).intValue();
-    		int w = interval;
-    		int big = key + 1;
-    		double num = (double) h * part / interval;
-    		while((big) < histogram.size()){
-    			num += histogram.get(big);
-    			big += 1;
-    		}
-    		return (double) num / ntups;
-    	}else if (op.toString().equals("<")){
-    		if(v > max){
-    			return 1.0;
-    		}
-    		if(v <= min ){
-    			return 0.0;
-    		}
-    		int left = min + key * interval;
-    		int part = (v - left - 1) / interval;
-    		int h = histogram.get(key).intValue();
-    		int w = interval;
-    		int small = key - 1;
-    		double num = (double) h * part / interval;
-    		while((small) >= 0){
-    			num += histogram.get(small);
-    			small -= 1;
-    		}
-    		return (double) num / ntups;
-    	}else if (op.toString().equals(">=")){
-    		v -= 1;
-    		if(v >= max){
-    			return 0;
-    		}
-    		if(v < min ){
-    			return 1.0;
-    		}
-    		key = (int) Math.ceil((double)(v - min + 1) / interval) - 1;
-    		int right = min + (key + 1) * interval;
-    		int part = (right - v - 1) / interval;
-    		int h = histogram.get(key).intValue();
-    		int w = interval;
-    		int big = key + 1;
-    		double num = (double) h * part / interval;
-    		while((big) < histogram.size()){
-    			num += histogram.get(big);
-    			big += 1;
-    		}
-    		return (double) num / ntups;
-    	}else if (op.toString().equals("<=")){
-    		v += 1;
-    		if(v > max){
-    			return 1.0;
-    		}
-    		if(v <= min ){
-    			return 0.0;
-    		}
-        	key = (int) Math.ceil((double)(v - min + 1) / interval) - 1;
-    		int left = min + key * interval;
-    		int part = (v - left - 1) / interval;
-    		int h = histogram.get(key).intValue();;
-    		int w = interval;
-    		int small = key - 1;
-    		double num = (double) h * part / interval;
-    		while((small) >= 0){
-    			num += histogram.get(small);
-    			small -= 1;
-    		}
-    		return (double) num / ntups;
-    	}else if(op.toString().equals("<>")){
-    		double h = (double) histogram.get(key).intValue();
-        	double w = (double) interval;
-        	return 1 - (h / w) / ntups;
-    	}else {
-    		return -1.0;
-    	}
+        if (op.equals(Predicate.Op.LESS_THAN)) {
+            if (v <= min) {
+                return 0;
+            } else if (v >= max) {
+                return 1;
+            } else {
+                final int idx = getIndex(v);
+                double cnt = 0;
+                for (int i=0; i<idx; i++) {
+                    cnt += histogram[i];
+                }
+                cnt += histogram[idx]/width*(v-idx*width-min);
+                return cnt/ntups;
+            }
+        }
+        if (op.equals(Predicate.Op.LESS_THAN_OR_EQ)) {
+            return estimateSelectivity(Predicate.Op.LESS_THAN, v+1);
+        }
+        if (op.equals(Predicate.Op.GREATER_THAN)) {
+            return 1-estimateSelectivity(Predicate.Op.LESS_THAN_OR_EQ, v);
+        }
+        if (op.equals(Predicate.Op.GREATER_THAN_OR_EQ)) {
+            return estimateSelectivity(Predicate.Op.GREATER_THAN, v-1);
+        }
+        if (op.equals(Predicate.Op.EQUALS)) {
+            return estimateSelectivity(Predicate.Op.LESS_THAN_OR_EQ, v) -
+                    estimateSelectivity(Predicate.Op.LESS_THAN, v);
+        }
+        if (op.equals(Predicate.Op.NOT_EQUALS)) {
+            return 1 - estimateSelectivity(Predicate.Op.EQUALS, v);
+        }
+        return 0.0;
     }
     
     /**
@@ -203,6 +116,15 @@ public class IntHistogram {
     public String toString() {
         // some code goes here
         //return null;
-    	return buckets + ":" + min + ":" + max + ":" + interval;
+    	return histogram.length + ":" + min + ":" + max + ":" + width;
     }
+    
+    private int getIndex(int v) {
+        if (v < min || v >= max) {
+            throw new IllegalArgumentException(
+                    String.format("value %d out of [%d, %d)", v, min, max));
+        }
+        return (int)((v-min)/width);
+    }
+    
 }

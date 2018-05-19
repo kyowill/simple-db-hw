@@ -21,7 +21,6 @@ public class HeapFile implements DbFile {
 	private final File hf;
 	private final TupleDesc td;
 	private final int tableid;
-	private DbFileIterator iterator;
 	private Object lock = new Object();
 	private HashMap<HeapPageId, HeapPage> nonpersistent = new HashMap<HeapPageId, HeapPage>();;
 	/**
@@ -36,7 +35,6 @@ public class HeapFile implements DbFile {
 		this.hf = f;
 		this.td = td;
 		this.tableid = f.getAbsoluteFile().hashCode();
-		iterator = null;
 	}
 
 	/**

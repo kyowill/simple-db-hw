@@ -1,9 +1,15 @@
 package simpledb;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.sun.corba.se.spi.ior.MakeImmutable;
 
 /**
  * TableStats represents statistics (e.g., histograms) about base tables in a
@@ -66,6 +72,8 @@ public class TableStats {
      */
     static final int NUM_HIST_BINS = 100;
 
+    private int tableid;
+    private int ioCostPerPage;
     /**
      * Create a new TableStats object, that keeps track of statistics on each
      * column of a table
@@ -85,6 +93,8 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+    	this.tableid = tableid;
+    	this.ioCostPerPage = ioCostPerPage;
     }
 
     /**
@@ -101,7 +111,10 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // some code goes here
-        return 0;
+        //return 0;
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
+    	HeapFile hfFile = (HeapFile) file;
+    	return ioCostPerPage * hfFile.numPages();
     }
 
     /**
@@ -115,7 +128,11 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // some code goes here
-        return 0;
+        //return 0;
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
+    	HeapFile hfFile = (HeapFile) file;
+    	int pageNum = hfFile.numPages();
+    	return (int) (pageNum * totalTuples() * selectivityFactor);
     }
 
     /**
@@ -148,7 +165,27 @@ public class TableStats {
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
         // some code goes here
-        return 1.0;
+        //return 1.0;
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
+    	HeapFile hfFile = (HeapFile) file;
+    	TupleDesc td = file.getTupleDesc();
+    	Type tp = td.getFieldType(field);
+    	try{
+    		if(tp == Type.INT_TYPE){
+    			IntHistogram ih = getIntHistogram(field);
+    			int v = ((IntField)constant).getValue();
+    			return ih.estimateSelectivity(op, v);
+    		}else if(tp == Type.STRING_TYPE){
+    			StringHistogram sh = getStringHistogram(field);
+    			String s = ((StringField)constant).getValue();
+    			return sh.estimateSelectivity(op, s);
+    		}else{
+    			return 1.0;
+    		}
+    	}catch(Exception e){
+    		e.printStackTrace();
+    	}
+    	return 1.0;
     }
 
     /**
@@ -156,7 +193,100 @@ public class TableStats {
      * */
     public int totalTuples() {
         // some code goes here
-        return 0;
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
+    	HeapFile hfFile = (HeapFile) file;
+        int tupleSize = hfFile.getTupleDesc().getSize();
+        int pageSize = BufferPool.getPageSize();
+        double tuplesNum = Math.floor((pageSize * 8) / (tupleSize * 8 + 1));
+        return (int) tuplesNum;
     }
 
+    private IntHistogram getIntHistogram(int field) throws FileNotFoundException{
+    	
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
+    	HeapFile hfFile = (HeapFile) file;
+    	BufferedInputStream bis;
+		bis = new BufferedInputStream(new FileInputStream(hfFile.getFile()));
+    	IntHistogram ih = new IntHistogram(NUM_HIST_BINS, 0, 100);
+    	int pgNo = 0;
+    	try{
+	    	while(true){
+	    		HeapPageId id = new HeapPageId(tableid, pgNo);
+	    		byte pageBuf[] = new byte[BufferPool.getPageSize()];
+				if (bis.skip((id.getPageNumber()) * BufferPool.getPageSize()) != (id
+						.getPageNumber()) * BufferPool.getPageSize()) {
+					//throw new IllegalArgumentException(
+					//		"Unable to seek to correct place in HeapFile");
+					break;	
+				}
+				int retval = bis.read(pageBuf, 0, BufferPool.getPageSize());
+	    		if(retval == -1){
+	    			break;
+	    		}
+	    		HeapPage page = new HeapPage(id, pageBuf);
+	    		Iterator<Tuple> it = page.iterator();
+	    		while (it.hasNext()){
+	    			IntField f = (IntField)it.next().getField(field);
+	    			ih.addValue(f.getValue());
+	    		}
+	    		pgNo += 1;
+	    	}
+    	}catch(Exception e){
+    		e.printStackTrace();
+    	}finally {
+			// Close the file on success or error
+			try {
+				if (bis != null)
+					bis.close();
+			} catch (IOException ioe) {
+				// Ignore failures closing the file
+			}
+			
+		}
+    	return ih;
+    }
+    
+    private StringHistogram getStringHistogram(int field) throws FileNotFoundException{
+    	
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
+    	HeapFile hfFile = (HeapFile) file;
+    	BufferedInputStream bis;
+		bis = new BufferedInputStream(new FileInputStream(hfFile.getFile()));
+    	StringHistogram ih = new StringHistogram(NUM_HIST_BINS);
+    	int pgNo = 0;
+    	try{
+	    	while(true){
+	    		HeapPageId id = new HeapPageId(tableid, pgNo);
+	    		byte pageBuf[] = new byte[BufferPool.getPageSize()];
+				if (bis.skip((id.getPageNumber()) * BufferPool.getPageSize()) != (id
+						.getPageNumber()) * BufferPool.getPageSize()) {
+					throw new IllegalArgumentException(
+							"Unable to seek to correct place in HeapFile");
+				}
+				int retval = bis.read(pageBuf, 0, BufferPool.getPageSize());
+	    		if(retval == -1){
+	    			break;
+	    		}
+	    		HeapPage page = new HeapPage(id, pageBuf);
+	    		Iterator<Tuple> it = page.iterator();
+	    		while (it.hasNext()){
+	    			StringField f = (StringField)it.next().getField(field);
+	    			ih.addValue(f.getValue());
+	    		}
+	    		pgNo += 1;
+	    	}
+    	}catch(Exception e){
+    		e.printStackTrace();
+    	}finally {
+			// Close the file on success or error
+			try {
+				if (bis != null)
+					bis.close();
+			} catch (IOException ioe) {
+				// Ignore failures closing the file
+			}
+			
+		}
+    	return ih;
+    }
 }
