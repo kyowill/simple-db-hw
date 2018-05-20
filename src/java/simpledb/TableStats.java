@@ -74,6 +74,10 @@ public class TableStats {
 
     private int tableid;
     private int ioCostPerPage;
+    private int numPages=0;
+    private int cardinality = 0;
+    private HashMap<Integer, IntHistogram> intHistograms = new HashMap<Integer, IntHistogram>();
+    private HashMap<Integer, StringHistogram> strHistograms = new HashMap<Integer, StringHistogram>();
     /**
      * Create a new TableStats object, that keeps track of statistics on each
      * column of a table
@@ -95,6 +99,73 @@ public class TableStats {
         // some code goes here
     	this.tableid = tableid;
     	this.ioCostPerPage = ioCostPerPage;
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
+    	DbFileIterator iter = file.iterator(new TransactionId());
+    	TupleDesc td=file.getTupleDesc();
+    	HashMap<Integer, Integer> mins = new HashMap<Integer, Integer>();
+    	HashMap<Integer, Integer> maxs = new HashMap<Integer, Integer>();
+    	for(int i=0; i < td.numFields(); ++i){
+    		if(td.getFieldType(i).equals(Type.INT_TYPE)){
+    			mins.put(i, Integer.MIN_VALUE);
+    			maxs.put(i, Integer.MAX_VALUE);
+    		}else{
+    			strHistograms.put(i, new StringHistogram(NUM_HIST_BINS));
+    		}
+    	}
+    	try {
+    		iter.open();
+			while(iter.hasNext()){
+				Tuple t = iter.next();
+				cardinality ++;
+				for(int i=0; i < td.numFields(); ++i){
+					if(td.getFieldType(i).equals(Type.INT_TYPE)){
+						IntField field=(IntField)t.getField(i);
+						if(mins.get(i).equals(Integer.MIN_VALUE)){
+							mins.put(i, field.getValue());
+						}
+						if(maxs.get(i).equals(Integer.MAX_VALUE)){
+							maxs.put(i, field.getValue());
+						}
+						if(field.getValue() < mins.get(i)){
+							mins.put(i, field.getValue());
+						}
+						if(field.getValue() > maxs.get(i)){
+							maxs.put(i, field.getValue());
+						}
+					}
+				}
+			}
+	    	for(int i=0; i < td.numFields(); ++i){
+	    		if(td.getFieldType(i).equals(Type.INT_TYPE)){
+	    			intHistograms.put(i, new IntHistogram(NUM_HIST_BINS, mins.get(i), maxs.get(i)));
+	    		}
+	    	}
+			iter.rewind();
+			while(iter.hasNext()){
+				Tuple t = iter.next();
+				for(int i=0; i < td.numFields(); ++i){
+					if(td.getFieldType(i).equals(Type.INT_TYPE)){
+						IntField field=(IntField)t.getField(i);
+						intHistograms.get(i).addValue(field.getValue());
+					}else{
+						StringField field = (StringField)t.getField(i);
+						strHistograms.get(i).addValue(field.getValue());
+					}
+				}
+			}
+			int pageSize=BufferPool.getPageSize();
+			//numPages = (cardinality * td.getSize() + pageSize - 1)/ pageSize;
+			numPages = (int) Math.ceil((double)cardinality * td.getSize() / pageSize);
+			//double tuplesNum = Math.floor((pageSize * 8) / (td.getSize() * 8 + 1));
+		} catch (DbException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}finally{
+			iter.close();
+		}
     }
 
     /**
@@ -112,9 +183,7 @@ public class TableStats {
     public double estimateScanCost() {
         // some code goes here
         //return 0;
-    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
-    	HeapFile hfFile = (HeapFile) file;
-    	return ioCostPerPage * hfFile.numPages();
+    	return ioCostPerPage * numPages;
     }
 
     /**
@@ -129,10 +198,7 @@ public class TableStats {
     public int estimateTableCardinality(double selectivityFactor) {
         // some code goes here
         //return 0;
-    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
-    	HeapFile hfFile = (HeapFile) file;
-    	int pageNum = hfFile.numPages();
-    	return (int) (pageNum * totalTuples() * selectivityFactor);
+    	return (int) (cardinality * selectivityFactor);
     }
 
     /**
@@ -166,26 +232,11 @@ public class TableStats {
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
         // some code goes here
         //return 1.0;
-    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
-    	HeapFile hfFile = (HeapFile) file;
-    	TupleDesc td = file.getTupleDesc();
-    	Type tp = td.getFieldType(field);
-    	try{
-    		if(tp == Type.INT_TYPE){
-    			IntHistogram ih = getIntHistogram(field);
-    			int v = ((IntField)constant).getValue();
-    			return ih.estimateSelectivity(op, v);
-    		}else if(tp == Type.STRING_TYPE){
-    			StringHistogram sh = getStringHistogram(field);
-    			String s = ((StringField)constant).getValue();
-    			return sh.estimateSelectivity(op, s);
-    		}else{
-    			return 1.0;
-    		}
-    	}catch(Exception e){
-    		e.printStackTrace();
-    	}
-    	return 1.0;
+        if (strHistograms.containsKey(field)) {
+            return strHistograms.get(field).estimateSelectivity(op, ((StringField)constant).getValue());
+        } else {
+            return intHistograms.get(field).estimateSelectivity(op, ((IntField)constant).getValue());
+        }
     }
 
     /**
@@ -193,100 +244,6 @@ public class TableStats {
      * */
     public int totalTuples() {
         // some code goes here
-    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
-    	HeapFile hfFile = (HeapFile) file;
-        int tupleSize = hfFile.getTupleDesc().getSize();
-        int pageSize = BufferPool.getPageSize();
-        double tuplesNum = Math.floor((pageSize * 8) / (tupleSize * 8 + 1));
-        return (int) tuplesNum;
-    }
-
-    private IntHistogram getIntHistogram(int field) throws FileNotFoundException{
-    	
-    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
-    	HeapFile hfFile = (HeapFile) file;
-    	BufferedInputStream bis;
-		bis = new BufferedInputStream(new FileInputStream(hfFile.getFile()));
-    	IntHistogram ih = new IntHistogram(NUM_HIST_BINS, 0, 100);
-    	int pgNo = 0;
-    	try{
-	    	while(true){
-	    		HeapPageId id = new HeapPageId(tableid, pgNo);
-	    		byte pageBuf[] = new byte[BufferPool.getPageSize()];
-				if (bis.skip((id.getPageNumber()) * BufferPool.getPageSize()) != (id
-						.getPageNumber()) * BufferPool.getPageSize()) {
-					//throw new IllegalArgumentException(
-					//		"Unable to seek to correct place in HeapFile");
-					break;	
-				}
-				int retval = bis.read(pageBuf, 0, BufferPool.getPageSize());
-	    		if(retval == -1){
-	    			break;
-	    		}
-	    		HeapPage page = new HeapPage(id, pageBuf);
-	    		Iterator<Tuple> it = page.iterator();
-	    		while (it.hasNext()){
-	    			IntField f = (IntField)it.next().getField(field);
-	    			ih.addValue(f.getValue());
-	    		}
-	    		pgNo += 1;
-	    	}
-    	}catch(Exception e){
-    		e.printStackTrace();
-    	}finally {
-			// Close the file on success or error
-			try {
-				if (bis != null)
-					bis.close();
-			} catch (IOException ioe) {
-				// Ignore failures closing the file
-			}
-			
-		}
-    	return ih;
-    }
-    
-    private StringHistogram getStringHistogram(int field) throws FileNotFoundException{
-    	
-    	DbFile file = Database.getCatalog().getDatabaseFile(tableid);
-    	HeapFile hfFile = (HeapFile) file;
-    	BufferedInputStream bis;
-		bis = new BufferedInputStream(new FileInputStream(hfFile.getFile()));
-    	StringHistogram ih = new StringHistogram(NUM_HIST_BINS);
-    	int pgNo = 0;
-    	try{
-	    	while(true){
-	    		HeapPageId id = new HeapPageId(tableid, pgNo);
-	    		byte pageBuf[] = new byte[BufferPool.getPageSize()];
-				if (bis.skip((id.getPageNumber()) * BufferPool.getPageSize()) != (id
-						.getPageNumber()) * BufferPool.getPageSize()) {
-					throw new IllegalArgumentException(
-							"Unable to seek to correct place in HeapFile");
-				}
-				int retval = bis.read(pageBuf, 0, BufferPool.getPageSize());
-	    		if(retval == -1){
-	    			break;
-	    		}
-	    		HeapPage page = new HeapPage(id, pageBuf);
-	    		Iterator<Tuple> it = page.iterator();
-	    		while (it.hasNext()){
-	    			StringField f = (StringField)it.next().getField(field);
-	    			ih.addValue(f.getValue());
-	    		}
-	    		pgNo += 1;
-	    	}
-    	}catch(Exception e){
-    		e.printStackTrace();
-    	}finally {
-			// Close the file on success or error
-			try {
-				if (bis != null)
-					bis.close();
-			} catch (IOException ioe) {
-				// Ignore failures closing the file
-			}
-			
-		}
-    	return ih;
+        return cardinality;
     }
 }
