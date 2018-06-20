@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.sun.corba.se.spi.ior.MakeImmutable;
 
 /**
  * TableStats represents statistics (e.g., histograms) about base tables in a

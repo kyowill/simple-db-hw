@@ -22,7 +22,7 @@ import java.util.concurrent.Semaphore;
  */
 public class BufferPool {
 
-	public static class Buffer {
+/*	public static class Buffer {
 		private Page page;
 		private TransactionId tid;
 		private Permissions perm;
@@ -36,6 +36,10 @@ public class BufferPool {
 		public Page getPage() {
 			return this.page;
 		}
+		
+		public PageId getPageId(){
+			return this.page.getId();
+		}
 
 		public TransactionId getTransactionId() {
 			return tid;
@@ -46,7 +50,7 @@ public class BufferPool {
 			this.perm = perm;
 		}
 
-	}
+	}*/
 
 	/** Bytes per page, including header. */
 	private static final int DEFAULT_PAGE_SIZE = 4096;
@@ -55,9 +59,9 @@ public class BufferPool {
 
 	private int numPages;
 
-	private Map<PageId, Buffer> buffers;
-	private List<PageId> pages;
+	private Page[] buffers;
 	private LockManager lockManager;
+	private int validNum;
 	/**
 	 * Default number of pages passed to the constructor. This is used by other
 	 * classes. BufferPool should use the numPages argument to the constructor
@@ -74,9 +78,9 @@ public class BufferPool {
 	public BufferPool(int numPages) {
 		// some code goes here
 		this.numPages = numPages;
-		this.buffers = new HashMap<PageId, BufferPool.Buffer>();
-		this.pages = new ArrayList<PageId>(numPages);
+		this.buffers = new Page[numPages];
 		this.lockManager = new LockManager(numPages);
+		this.validNum = 0;
 	}
 
 	public static int getPageSize() {
@@ -113,10 +117,8 @@ public class BufferPool {
 	public Page getPage(TransactionId tid, PageId pid, Permissions perm)
 			throws TransactionAbortedException, DbException {
 		// some code goes here
-		// return null;
 		
-		
-		Buffer buf = null;
+/*		Buffer buf = null;
 		if (this.buffers.get(pid) == null) {
 			if (this.buffers.size() == numPages) {
 				//throw new DbException("buffer pool is full!");//lab 1.x
@@ -132,7 +134,31 @@ public class BufferPool {
 		if (!buf.getTransactionId().equals(tid)) {
 			buf.accessBuffer(tid, perm);
 		}
-		return buf.getPage();
+		return buf.getPage();*/
+		Page pg = null;
+		int pos = -1;
+		int none = 0;
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null && buffers[i].getId().equals(pid)){
+				pos = i;
+			}else if (buffers[i] == null){
+				none = i;
+			}
+		}
+		
+		if(pos == -1){
+			if(validNum == numPages){
+				evictPage();// lab 2.5
+			}
+			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
+					.readPage(pid);
+			buffers[none] = page;
+			validNum += 1;
+			pg = page;
+		}else{
+			pg = buffers[pos];
+		}
+		return pg;
 	}
 
 	/**
@@ -167,9 +193,14 @@ public class BufferPool {
 	public boolean holdsLock(TransactionId tid, PageId p) {
 		// some code goes here
 		// not necessary for lab1|lab2
-		int idx = pages.indexOf(p);
-		
-		return lockManager.isHoldLock(tid, idx);
+		int pos = -1;
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null && buffers[i].getId().equals(p)){
+				pos = -1;
+				break;
+			}
+		}
+		return lockManager.isHoldLock(tid, pos);
 	}
 
 	/**
@@ -209,7 +240,7 @@ public class BufferPool {
 			throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
 		// not necessary for lab1
-		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
+/*		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
 		Iterator<Page> it = arrayList.iterator();
 		while(it.hasNext()){
 			Page nextPage = it.next();
@@ -220,7 +251,16 @@ public class BufferPool {
 			}
 			buffer.accessBuffer(tid, Permissions.READ_WRITE);
 			nextPage.markDirty(true, tid);
-		}	
+		}*/	
+		RecordId rid = t.getRecordId();
+		PageId pid = rid.getPageId();
+		Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null && buffers[i].getId().equals(pid)){
+				buffers[i].markDirty(true, tid);
+				break;
+			}
+		}
 	}
 
 	/**
@@ -245,18 +285,26 @@ public class BufferPool {
 		RecordId rid = t.getRecordId();
 		PageId pid = rid.getPageId();
 		int tableId = pid.getTableId();
-		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
+/*		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
 		Iterator<Page> it = arrayList.iterator();
 		while(it.hasNext()){
 			Page nextPage = it.next();
-			Buffer buffer = buffers.get(nextPage.getId());
+			//Buffer buffer = buffers.get(nextPage.getId());
+			
 			if(buffer == null){
 				buffer = new Buffer(tid, nextPage, Permissions.READ_WRITE);
 				buffers.put(nextPage.getId(), buffer);
 			}
 			buffer.accessBuffer(tid, Permissions.READ_WRITE);
 			nextPage.markDirty(true, tid);
-		}	
+		}*/	
+		Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null && buffers[i].getId().equals(pid)){
+				buffers[i].markDirty(true, tid);
+				break;
+			}
+		}
 	}
 
 	/**
@@ -267,10 +315,14 @@ public class BufferPool {
 	public synchronized void flushAllPages() throws IOException {
 		// some code goes here
 		// not necessary for lab1
-		PageId pid = null;
-		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {
+/*		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {
 			pid = entry.getKey();
 			flushPage(entry.getKey());		
+		}*/
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null){
+				flushPage(buffers[i].getId());
+			}
 		}
 	}
 
@@ -285,7 +337,14 @@ public class BufferPool {
 	public synchronized void discardPage(PageId pid) {
 		// some code goes here
 		// not necessary for lab1
-		buffers.remove(pid);
+		//buffers.remove(pid);
+		for(int i=0; i < numPages; ++i){
+			if(buffers[i] != null && buffers[i].getId().equals(pid)){
+				buffers[i] = null;
+				validNum -= 1;
+				break;
+			}
+		}
 	}
 
 	/**
@@ -297,14 +356,23 @@ public class BufferPool {
 	private synchronized void flushPage(PageId pid) throws IOException {
 		// some code goes here
 		// not necessary for lab1
-		Buffer buf = buffers.get(pid);
+		//Buffer buf = buffers.get(pid);
+		Page buf = null;
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null && buffers[i].getId().equals(pid)){
+				buf = buffers[i];
+				break;
+			}
+		}
 		if(buf == null){
 			throw new IOException("page not exist in bufferpool");
 		}
-		Page pg = buf.getPage();
+		//Page pg = buf.getPage();
+		Page pg = buf;
 		Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(pg);
 		//mark not dirty
-		pg.markDirty(false, buf.getTransactionId());
+		//pg.markDirty(false, buf.getTransactionId());
+		pg.markDirty(false, buf.isDirty());
 	}
 
 	/**
@@ -324,9 +392,17 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		PageId pid = null; 
-		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {  
+/*		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {  
 			pid = entry.getKey();
 			break;
+		}*/
+		int idx = 0;
+		for(int i=0; i < numPages; i++){
+			if(buffers[i] != null){
+				pid = buffers[i].getId();
+				idx = i;
+				break;
+			}
 		}
 		
 		try {
@@ -336,7 +412,9 @@ public class BufferPool {
 			e.printStackTrace();
 			throw new DbException("can not flush page" + pid.toString());
 		}
-		buffers.remove(pid);
+		//buffers.remove(pid);
+		buffers[idx] = null;
+		validNum -= 1;
 	}
 
 }

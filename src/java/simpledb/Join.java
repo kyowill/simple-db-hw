@@ -2,7 +2,6 @@ package simpledb;
 
 import java.util.*;
 
-import com.sun.javafx.font.t2k.T2KFactory;
 
 /**
  * The Join operator implements the relational join operation.

@@ -3,7 +3,6 @@ package simpledb;
 import java.io.*;
 import java.util.*;
 
-import simpledb.BufferPool.Buffer;
 
 
 /**

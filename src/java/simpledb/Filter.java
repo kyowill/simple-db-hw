@@ -2,7 +2,6 @@ package simpledb;
 
 import java.util.*;
 
-import com.sun.org.apache.xpath.internal.axes.ChildIterator;
 
 /**
  * Filter is an operator that implements a relational select.
