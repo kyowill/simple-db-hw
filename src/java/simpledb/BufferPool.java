@@ -2,7 +2,9 @@ package simpledb;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -24,13 +26,11 @@ public class BufferPool {
 		private Page page;
 		private TransactionId tid;
 		private Permissions perm;
-		private Semaphore sig;
 
 		public Buffer(TransactionId t, Page p, Permissions perm) {
 			this.page = p;
 			this.tid = t;
 			this.perm = perm;
-			this.sig = new Semaphore(1);
 		}
 
 		public Page getPage() {
@@ -42,15 +42,8 @@ public class BufferPool {
 		}
 
 		public void accessBuffer(TransactionId t, Permissions perm) {
-			try {
-				this.sig.acquire();
-				this.tid = t;
-				this.perm = perm;
-				this.sig.release();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			this.tid = t;
+			this.perm = perm;
 		}
 
 	}
@@ -63,7 +56,8 @@ public class BufferPool {
 	private int numPages;
 
 	private Map<PageId, Buffer> buffers;
-
+	private List<PageId> pages;
+	private LockManager lockManager;
 	/**
 	 * Default number of pages passed to the constructor. This is used by other
 	 * classes. BufferPool should use the numPages argument to the constructor
@@ -80,7 +74,9 @@ public class BufferPool {
 	public BufferPool(int numPages) {
 		// some code goes here
 		this.numPages = numPages;
-		this.buffers = new ConcurrentHashMap<PageId, Buffer>();
+		this.buffers = new HashMap<PageId, BufferPool.Buffer>();
+		this.pages = new ArrayList<PageId>(numPages);
+		this.lockManager = new LockManager(numPages);
 	}
 
 	public static int getPageSize() {
@@ -119,7 +115,7 @@ public class BufferPool {
 		// some code goes here
 		// return null;
 		
-
+		
 		Buffer buf = null;
 		if (this.buffers.get(pid) == null) {
 			if (this.buffers.size() == numPages) {
@@ -171,7 +167,9 @@ public class BufferPool {
 	public boolean holdsLock(TransactionId tid, PageId p) {
 		// some code goes here
 		// not necessary for lab1|lab2
-		return false;
+		int idx = pages.indexOf(p);
+		
+		return lockManager.isHoldLock(tid, idx);
 	}
 
 	/**
