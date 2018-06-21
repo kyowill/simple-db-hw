@@ -416,5 +416,13 @@ public class BufferPool {
 		buffers[idx] = null;
 		validNum -= 1;
 	}
-
+	
+	private int indexOfPage(PageId pid){
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null && buffers[i].getId().equals(pid)){
+				return i;
+			}
+		}
+		return -1;
+	}
 }
