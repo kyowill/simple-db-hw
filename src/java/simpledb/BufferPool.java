@@ -22,36 +22,6 @@ import java.util.concurrent.Semaphore;
  */
 public class BufferPool {
 
-/*	public static class Buffer {
-		private Page page;
-		private TransactionId tid;
-		private Permissions perm;
-
-		public Buffer(TransactionId t, Page p, Permissions perm) {
-			this.page = p;
-			this.tid = t;
-			this.perm = perm;
-		}
-
-		public Page getPage() {
-			return this.page;
-		}
-		
-		public PageId getPageId(){
-			return this.page.getId();
-		}
-
-		public TransactionId getTransactionId() {
-			return tid;
-		}
-
-		public void accessBuffer(TransactionId t, Permissions perm) {
-			this.tid = t;
-			this.perm = perm;
-		}
-
-	}*/
-
 	/** Bytes per page, including header. */
 	private static final int DEFAULT_PAGE_SIZE = 4096;
 
@@ -116,23 +86,6 @@ public class BufferPool {
 			throws TransactionAbortedException, DbException {
 		// some code goes here
 		
-/*		Buffer buf = null;
-		if (this.buffers.get(pid) == null) {
-			if (this.buffers.size() == numPages) {
-				//throw new DbException("buffer pool is full!");//lab 1.x
-				evictPage();//lab 2.5
-			}
-			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
-					.readPage(pid);
-			buf = new Buffer(tid, page, perm);
-			this.buffers.put(pid, buf);
-			return page;
-		}
-		buf = this.buffers.get(pid);
-		if (!buf.getTransactionId().equals(tid)) {
-			buf.accessBuffer(tid, perm);
-		}
-		return buf.getPage();*/
 		Page pg = null;
 		int pos = indexOfPage(pid);
 		if(pos == -1){
@@ -224,18 +177,6 @@ public class BufferPool {
 			throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
 		// not necessary for lab1
-/*		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
-		Iterator<Page> it = arrayList.iterator();
-		while(it.hasNext()){
-			Page nextPage = it.next();
-			Buffer buffer = buffers.get(nextPage.getId());
-			if(buffer == null){
-				buffer = new Buffer(tid, nextPage, Permissions.READ_WRITE);
-				buffers.put(nextPage.getId(), buffer);
-			}
-			buffer.accessBuffer(tid, Permissions.READ_WRITE);
-			nextPage.markDirty(true, tid);
-		}*/	
 		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
 		Iterator<Page> it = arrayList.iterator();
 		Page pg = null;
@@ -274,19 +215,6 @@ public class BufferPool {
 		RecordId rid = t.getRecordId();
 		PageId pid = rid.getPageId();
 		int tableId = pid.getTableId();
-/*		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
-		Iterator<Page> it = arrayList.iterator();
-		while(it.hasNext()){
-			Page nextPage = it.next();
-			//Buffer buffer = buffers.get(nextPage.getId());
-			
-			if(buffer == null){
-				buffer = new Buffer(tid, nextPage, Permissions.READ_WRITE);
-				buffers.put(nextPage.getId(), buffer);
-			}
-			buffer.accessBuffer(tid, Permissions.READ_WRITE);
-			nextPage.markDirty(true, tid);
-		}*/	
 		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
 		Iterator<Page> it = arrayList.iterator();
 		Page pg = null;
@@ -311,10 +239,6 @@ public class BufferPool {
 	public synchronized void flushAllPages() throws IOException {
 		// some code goes here
 		// not necessary for lab1
-/*		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {
-			pid = entry.getKey();
-			flushPage(entry.getKey());		
-		}*/
 		for(int i = 0; i < numPages; ++i){
 			if(buffers[i] != null){
 				flushPage(buffers[i].getId());
@@ -349,17 +273,13 @@ public class BufferPool {
 	private synchronized void flushPage(PageId pid) throws IOException {
 		// some code goes here
 		// not necessary for lab1
-		//Buffer buf = buffers.get(pid);
 		int pos = indexOfPage(pid);
-		//if(buf == null){
 		if(pos == -1){
 			throw new IOException("page not exist in bufferpool");
 		}
-		//Page pg = buf.getPage();
 		Page pg = buffers[pos];
 		Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(pg);
 		//mark not dirty
-		//pg.markDirty(false, buf.getTransactionId());
 		pg.markDirty(false, pg.isDirty());
 	}
 
@@ -380,10 +300,6 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		PageId pid = null; 
-/*		for (Map.Entry<PageId, Buffer> entry : buffers.entrySet()) {  
-			pid = entry.getKey();
-			break;
-		}*/
 		int idx = getFirstExistBuffer();
 		pid = buffers[idx].getId();
 		try {
@@ -393,7 +309,6 @@ public class BufferPool {
 			e.printStackTrace();
 			throw new DbException("can not flush page" + pid.toString());
 		}
-		//buffers.remove(pid);
 		buffers[idx] = null;
 	}
 	
