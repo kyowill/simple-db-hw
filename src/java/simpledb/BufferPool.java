@@ -61,7 +61,6 @@ public class BufferPool {
 
 	private Page[] buffers;
 	private LockManager lockManager;
-	private int validNum;
 	/**
 	 * Default number of pages passed to the constructor. This is used by other
 	 * classes. BufferPool should use the numPages argument to the constructor
@@ -80,7 +79,6 @@ public class BufferPool {
 		this.numPages = numPages;
 		this.buffers = new Page[numPages];
 		this.lockManager = new LockManager(numPages);
-		this.validNum = 0;
 	}
 
 	public static int getPageSize() {
@@ -136,24 +134,16 @@ public class BufferPool {
 		}
 		return buf.getPage();*/
 		Page pg = null;
-		int pos = -1;
-		int none = 0;
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].getId().equals(pid)){
-				pos = i;
-			}else if (buffers[i] == null){
-				none = i;
-			}
-		}
-		
+		int pos = indexOfPage(pid);
 		if(pos == -1){
+			int validNum = getNumValidBuffers();
 			if(validNum == numPages){
 				evictPage();// lab 2.5
 			}
 			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
 					.readPage(pid);
+			int none = getFirstEmptyBuffer();
 			buffers[none] = page;
-			validNum += 1;
 			pg = page;
 		}else{
 			pg = buffers[pos];
@@ -193,13 +183,7 @@ public class BufferPool {
 	public boolean holdsLock(TransactionId tid, PageId p) {
 		// some code goes here
 		// not necessary for lab1|lab2
-		int pos = -1;
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].getId().equals(p)){
-				pos = -1;
-				break;
-			}
-		}
+		int pos = indexOfPage(p);
 		return lockManager.isHoldLock(tid, pos);
 	}
 
@@ -252,14 +236,19 @@ public class BufferPool {
 			buffer.accessBuffer(tid, Permissions.READ_WRITE);
 			nextPage.markDirty(true, tid);
 		}*/	
-		RecordId rid = t.getRecordId();
-		PageId pid = rid.getPageId();
-		Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].getId().equals(pid)){
-				buffers[i].markDirty(true, tid);
-				break;
+		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
+		Iterator<Page> it = arrayList.iterator();
+		Page pg = null;
+		while(it.hasNext()){
+			Page nextPage = it.next();
+			pg = nextPage;
+			int pos = indexOfPage(pg.getId());
+			if(pos == -1){
+				int none = getFirstEmptyBuffer();
+				buffers[none] = pg;
+				pos = none;
 			}
+			buffers[pos].markDirty(true, tid);
 		}
 	}
 
@@ -298,12 +287,19 @@ public class BufferPool {
 			buffer.accessBuffer(tid, Permissions.READ_WRITE);
 			nextPage.markDirty(true, tid);
 		}*/	
-		Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].getId().equals(pid)){
-				buffers[i].markDirty(true, tid);
-				break;
+		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
+		Iterator<Page> it = arrayList.iterator();
+		Page pg = null;
+		while(it.hasNext()){
+			Page nextPage = it.next();
+			pg = nextPage;
+			int pos = indexOfPage(pg.getId());
+			if(pos == -1){
+				int none = getFirstEmptyBuffer();
+				buffers[none] = pg;
+				pos = none;
 			}
+			buffers[pos].markDirty(true, tid);
 		}
 	}
 
@@ -338,12 +334,9 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		//buffers.remove(pid);
-		for(int i=0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].getId().equals(pid)){
-				buffers[i] = null;
-				validNum -= 1;
-				break;
-			}
+		int pos = indexOfPage(pid);
+		if(pos != -1){
+			buffers[pos] = null;
 		}
 	}
 
@@ -357,22 +350,17 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		//Buffer buf = buffers.get(pid);
-		Page buf = null;
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].getId().equals(pid)){
-				buf = buffers[i];
-				break;
-			}
-		}
-		if(buf == null){
+		int pos = indexOfPage(pid);
+		//if(buf == null){
+		if(pos == -1){
 			throw new IOException("page not exist in bufferpool");
 		}
 		//Page pg = buf.getPage();
-		Page pg = buf;
+		Page pg = buffers[pos];
 		Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(pg);
 		//mark not dirty
 		//pg.markDirty(false, buf.getTransactionId());
-		pg.markDirty(false, buf.isDirty());
+		pg.markDirty(false, pg.isDirty());
 	}
 
 	/**
@@ -396,15 +384,8 @@ public class BufferPool {
 			pid = entry.getKey();
 			break;
 		}*/
-		int idx = 0;
-		for(int i=0; i < numPages; i++){
-			if(buffers[i] != null){
-				pid = buffers[i].getId();
-				idx = i;
-				break;
-			}
-		}
-		
+		int idx = getFirstExistBuffer();
+		pid = buffers[idx].getId();
 		try {
 			flushPage(pid);
 		} catch (IOException e) {
@@ -414,7 +395,6 @@ public class BufferPool {
 		}
 		//buffers.remove(pid);
 		buffers[idx] = null;
-		validNum -= 1;
 	}
 	
 	private int indexOfPage(PageId pid){
@@ -424,5 +404,36 @@ public class BufferPool {
 			}
 		}
 		return -1;
+	}
+	
+	private int getNumValidBuffers(){
+		int cnt = 0;
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null){
+				cnt += 1;
+			}
+		}
+		return cnt;
+	}
+	
+	private int getFirstEmptyBuffer(){
+		int idx = -1;
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] == null){
+				idx = i;
+				break;
+			}
+		}
+		return idx;
+	}
+	private int getFirstExistBuffer(){
+		int idx = -1;
+		for(int i = 0; i < numPages; ++i){
+			if(buffers[i] != null){
+				idx = i;
+				break;
+			}
+		}
+		return idx;
 	}
 }
