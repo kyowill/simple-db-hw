@@ -85,7 +85,8 @@ public class BufferPool {
 	public Page getPage(TransactionId tid, PageId pid, Permissions perm)
 			throws TransactionAbortedException, DbException {
 		// some code goes here
-		
+	
+		//lockManager.lockPage(tid, perm, idx);
 		Page pg = null;
 		int pos = indexOfPage(pid);
 		if(pos == -1){
@@ -179,17 +180,9 @@ public class BufferPool {
 		// not necessary for lab1
 		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
 		Iterator<Page> it = arrayList.iterator();
-		Page pg = null;
 		while(it.hasNext()){
 			Page nextPage = it.next();
-			pg = nextPage;
-			int pos = indexOfPage(pg.getId());
-			if(pos == -1){
-				int none = getFirstEmptyBuffer();
-				buffers[none] = pg;
-				pos = none;
-			}
-			buffers[pos].markDirty(true, tid);
+			nextPage.markDirty(true, tid);
 		}
 	}
 
@@ -217,17 +210,9 @@ public class BufferPool {
 		int tableId = pid.getTableId();
 		ArrayList<Page> arrayList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
 		Iterator<Page> it = arrayList.iterator();
-		Page pg = null;
 		while(it.hasNext()){
 			Page nextPage = it.next();
-			pg = nextPage;
-			int pos = indexOfPage(pg.getId());
-			if(pos == -1){
-				int none = getFirstEmptyBuffer();
-				buffers[none] = pg;
-				pos = none;
-			}
-			buffers[pos].markDirty(true, tid);
+			nextPage.markDirty(true, tid);
 		}
 	}
 
@@ -300,7 +285,7 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		PageId pid = null; 
-		int idx = getFirstExistBuffer();
+		int idx = getFirstCleanedBuffer();
 		pid = buffers[idx].getId();
 		try {
 			flushPage(pid);
@@ -341,10 +326,10 @@ public class BufferPool {
 		}
 		return idx;
 	}
-	private int getFirstExistBuffer(){
+	private int getFirstCleanedBuffer(){
 		int idx = -1;
 		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null){
+			if(buffers[i] != null && (buffers[i].isDirty() == null)){
 				idx = i;
 				break;
 			}
