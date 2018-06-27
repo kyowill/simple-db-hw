@@ -20,7 +20,7 @@ public class HeapFile implements DbFile {
 	private final File hf;
 	private final TupleDesc td;
 	private final int tableid;
-	private Object lock = new Object();
+	//private Object lock = new Object();
 	private HashMap<HeapPageId, HeapPage> nonpersistent = new HashMap<HeapPageId, HeapPage>();;
 	/**
 	 * Constructs a heap file backed by the specified file.
@@ -78,6 +78,38 @@ public class HeapFile implements DbFile {
 		// some code goes here
 		// return null;
 		HeapPageId id = (HeapPageId) pid;
+/*		BufferedInputStream bis = null;
+		try {
+			bis = new BufferedInputStream(new FileInputStream(hf));
+			byte pageBuf[] = new byte[BufferPool.getPageSize()];
+			if (bis.skip((id.getPageNumber()) * BufferPool.getPageSize()) != (id
+					.getPageNumber()) * BufferPool.getPageSize()) {
+				throw new IllegalArgumentException(
+						"Unable to seek to correct place in HeapFile");
+			}
+			int retval = bis.read(pageBuf, 0, BufferPool.getPageSize());
+			if (retval == -1) {
+				throw new IllegalArgumentException("Read past end of table");
+			}
+			if (retval < BufferPool.getPageSize()) {
+				throw new IllegalArgumentException("Unable to read "
+						+ BufferPool.getPageSize() + " bytes from HeapFile");
+			}
+			Debug.log(1, "HeapFile.readPage: read page %d", id.getPageNumber());
+			HeapPage page = new HeapPage(id, pageBuf);
+			return page;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			throw new RuntimeException(e);
+		} finally {
+			// Close the file on success or error
+			try {
+				if (bis != null)
+					bis.close();
+			} catch (IOException ioe) {
+				// Ignore failures closing the file
+			}
+		}*/
 		RandomAccessFile raf = null;
 		HeapPage page = null;
 		try {
@@ -132,7 +164,6 @@ public class HeapFile implements DbFile {
 		//return null;
 		// not necessary for lab1
 		int cursor = 0;
-		synchronized(lock){
 			while(true){
 				HeapPageId pid = new HeapPageId(getId(), cursor);
 				HeapPage page = null;
@@ -155,7 +186,6 @@ public class HeapFile implements DbFile {
 				}
 				cursor += 1;
 			}
-		}
 		//throw new DbException("tuple cannot be added!");
 	}
 
@@ -165,7 +195,6 @@ public class HeapFile implements DbFile {
 		// some code goes here
 		//return null;
 		// not necessary for lab1
-		synchronized (lock) {
 			RecordId rid = t.getRecordId();
 			HeapPageId pid = (HeapPageId) rid.getPageId();
 			HeapPage page = null;
@@ -179,7 +208,6 @@ public class HeapFile implements DbFile {
 			ArrayList<Page> arrayList = new ArrayList<Page>();
 			arrayList.add(page);
 			return arrayList;			
-		}
 	}
 
 	// see DbFile.java for javadocs
