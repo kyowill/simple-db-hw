@@ -33,12 +33,8 @@ public class LockManager {
 		}
 	}
 	
-	public void unlockPage(TransactionId tid, Permissions perm, int idx) throws InterruptedException{
-		if(perm.permLevel == 0){
-			releaseReadlock(tid, idx);
-		}else{
-			releaseWritelock(tid, idx);
-		}
+	public boolean unlockPage(TransactionId tid, int idx) throws InterruptedException{
+		return releaseWritelock(tid, idx) || releaseReadlock(tid, idx);
 	}
 	
 	private void acquireReadlock(TransactionId tid, int idx) throws InterruptedException{
@@ -53,15 +49,16 @@ public class LockManager {
 		}
 	}
 	
-	private void releaseReadlock(TransactionId tid, int idx) throws InterruptedException{
+	private boolean releaseReadlock(TransactionId tid, int idx) throws InterruptedException{
 		if(!isHoldLock(tid, idx)){
-			return;
+			return false;
 		}
 		synchronized (mutexes[idx]) {
 			readLockHolders.get(idx).remove(tid);
 			if(readLockHolders.get(idx).size() == 0){
 				mutexes[idx].notifyAll();
 			}
+			return true;
 		}
 	}
 	
@@ -77,13 +74,14 @@ public class LockManager {
 		}
 	}
 	
-	private void releaseWritelock(TransactionId tid, int idx){
+	private boolean releaseWritelock(TransactionId tid, int idx){
 		if(!isHoldLock(tid, idx)){
-			return;
+			return false;
 		}
 		synchronized (mutexes[idx]) {
 			writeLockHolders.set(idx, null);
 			mutexes[idx].notifyAll();
+			return true;
 		}
 	}
 		

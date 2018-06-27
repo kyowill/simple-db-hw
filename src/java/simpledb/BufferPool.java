@@ -81,6 +81,7 @@ public class BufferPool {
 	 *            the ID of the requested page
 	 * @param perm
 	 *            the requested permissions on the page
+	 * @throws InterruptedException 
 	 */
 	public Page getPage(TransactionId tid, PageId pid, Permissions perm)
 			throws TransactionAbortedException, DbException {
@@ -97,10 +98,17 @@ public class BufferPool {
 			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
 					.readPage(pid);
 			int none = getFirstEmptyBuffer();
-			buffers[none] = page;
+			pos = none;
+			buffers[pos] = page;
 			pg = page;
 		}else{
 			pg = buffers[pos];
+		}
+		try {
+			lockManager.lockPage(tid, perm, pos);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return pg;
 	}
@@ -114,10 +122,13 @@ public class BufferPool {
 	 *            the ID of the transaction requesting the unlock
 	 * @param pid
 	 *            the ID of the page to unlock
+	 * @throws InterruptedException 
 	 */
-	public void releasePage(TransactionId tid, PageId pid) {
+	public void releasePage(TransactionId tid, PageId pid) throws InterruptedException {
 		// some code goes here
 		// not necessary for lab1|lab2
+		int pos = indexOfPage(pid);
+		lockManager.unlockPage(tid, pos);
 	}
 
 	/**

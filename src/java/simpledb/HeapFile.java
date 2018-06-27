@@ -78,38 +78,27 @@ public class HeapFile implements DbFile {
 		// some code goes here
 		// return null;
 		HeapPageId id = (HeapPageId) pid;
-		BufferedInputStream bis = null;
+		RandomAccessFile raf = null;
+		HeapPage page = null;
 		try {
-			bis = new BufferedInputStream(new FileInputStream(hf));
+			raf = new RandomAccessFile(hf, "r");
 			byte pageBuf[] = new byte[BufferPool.getPageSize()];
-			if (bis.skip((id.getPageNumber()) * BufferPool.getPageSize()) != (id
-					.getPageNumber()) * BufferPool.getPageSize()) {
-				throw new IllegalArgumentException(
-						"Unable to seek to correct place in HeapFile");
-			}
-			int retval = bis.read(pageBuf, 0, BufferPool.getPageSize());
-			if (retval == -1) {
-				throw new IllegalArgumentException("Read past end of table");
-			}
-			if (retval < BufferPool.getPageSize()) {
-				throw new IllegalArgumentException("Unable to read "
-						+ BufferPool.getPageSize() + " bytes from HeapFile");
-			}
-			Debug.log(1, "HeapFile.readPage: read page %d", id.getPageNumber());
-			HeapPage page = new HeapPage(id, pageBuf);
-			return page;
-		} catch (IOException e) {
+			raf.seek(id.getPageNumber() * BufferPool.getPageSize());
+			raf.read(pageBuf, 0, BufferPool.getPageSize());
+			 page = new HeapPage(id, pageBuf);
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
+			e.printStackTrace();
 			throw new RuntimeException(e);
-		} finally {
-			// Close the file on success or error
+		}finally{
 			try {
-				if (bis != null)
-					bis.close();
-			} catch (IOException ioe) {
-				// Ignore failures closing the file
+				raf.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
+		return page;
 	}
 
 	// see DbFile.java for javadocs
