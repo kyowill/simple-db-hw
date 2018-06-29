@@ -20,8 +20,7 @@ public class HeapFile implements DbFile {
 	private final File hf;
 	private final TupleDesc td;
 	private final int tableid;
-	//private Object lock = new Object();
-	private HashMap<HeapPageId, HeapPage> nonpersistent = new HashMap<HeapPageId, HeapPage>();;
+	//private HashMap<HeapPageId, HeapPage> nonpersistent = new HashMap<HeapPageId, HeapPage>();;
 	/**
 	 * Constructs a heap file backed by the specified file.
 	 *
@@ -115,7 +114,7 @@ public class HeapFile implements DbFile {
 		try {
 			raf = new RandomAccessFile(hf, "r");
 			byte pageBuf[] = new byte[BufferPool.getPageSize()];
-			raf.seek(id.getPageNumber() * BufferPool.getPageSize());
+			raf.seek(1L*id.getPageNumber() * BufferPool.getPageSize());
 			raf.read(pageBuf, 0, BufferPool.getPageSize());
 			 page = new HeapPage(id, pageBuf);
 		} catch (Exception e) {
@@ -137,14 +136,13 @@ public class HeapFile implements DbFile {
 	public void writePage(Page page) throws IOException {
 		// some code goes here
 		// not necessary for lab1
-		HeapPageId id = (HeapPageId) page.getId();
 		byte[] data = page.getPageData();
 		RandomAccessFile rf = new RandomAccessFile(hf, "rw");
-		rf.seek(page.getId().getPageNumber() * BufferPool.getPageSize());
-		rf.write(data);
+		rf.seek(1L * page.getId().getPageNumber() * BufferPool.getPageSize());
+		rf.write(data,  0, BufferPool.getPageSize());
 		rf.close();
 		//flush to disk
-		nonpersistent.remove(id);
+		//nonpersistent.remove(id);
 	}
 
 	/**
@@ -152,18 +150,16 @@ public class HeapFile implements DbFile {
 	 */
 	public int numPages() {
 		// some code goes here
-		// return 0;
-		//(int) hf.length() / BufferPool.getPageSize();
-		return nonpersistent.size() + (int) Math.ceil((float)hf.length() / BufferPool.getPageSize());
+		return (int) (hf.length() / BufferPool.getPageSize());
+		//return nonpersistent.size() + (int) Math.ceil((float)hf.length() / BufferPool.getPageSize());
 	}
 
 	// see DbFile.java for javadocs
 	public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
 			throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
-		//return null;
 		// not necessary for lab1
-		int cursor = 0;
+/*		int cursor = 0;
 			while(true){
 				HeapPageId pid = new HeapPageId(getId(), cursor);
 				HeapPage page = null;
@@ -185,17 +181,35 @@ public class HeapFile implements DbFile {
 					return arrayList;
 				}
 				cursor += 1;
-			}
+			}*/
 		//throw new DbException("tuple cannot be added!");
+		ArrayList<Page> arrayList = new ArrayList<Page>();
+		int i = 0;
+		for(; i < numPages(); ++ i){
+			HeapPageId pid = new HeapPageId(getId(), i);
+			HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+			if(page.getNumEmptySlots() > 0){
+				page.insertTuple(t);
+				arrayList.add(page);
+				break;
+			}
+		}
+		if(i == numPages()){
+    		HeapPage page = new HeapPage(new HeapPageId(getId(), i), HeapPage.createEmptyPageData());
+    		page.insertTuple(t);
+    		arrayList.add(page);
+    		writePage(page);
+    		//System.out.println("sucess!");
+		}
+		return arrayList;
 	}
 
 	// see DbFile.java for javadocs
 	public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t)
 			throws DbException, TransactionAbortedException {
 		// some code goes here
-		//return null;
 		// not necessary for lab1
-			RecordId rid = t.getRecordId();
+/*			RecordId rid = t.getRecordId();
 			HeapPageId pid = (HeapPageId) rid.getPageId();
 			HeapPage page = null;
 			try {
@@ -205,9 +219,13 @@ public class HeapFile implements DbFile {
 				page = nonpersistent.get(pid);
 			}
 			page.deleteTuple(t);
-			ArrayList<Page> arrayList = new ArrayList<Page>();
-			arrayList.add(page);
-			return arrayList;			
+		*/
+    	BufferPool pool = Database.getBufferPool();
+    	HeapPage page = (HeapPage)pool.getPage(tid, t.getRecordId().getPageId(), Permissions.READ_WRITE);
+    	page.deleteTuple(t);
+		ArrayList<Page> arrayList = new ArrayList<Page>();
+		arrayList.add(page);
+		return arrayList;
 	}
 
 	// see DbFile.java for javadocs

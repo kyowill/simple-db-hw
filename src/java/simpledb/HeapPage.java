@@ -339,7 +339,7 @@ public class HeapPage implements Page {
         // return 0;
         int sum = 0;
         for (int i = 0; i < tuples.length; ++i) {
-            if (tuples[i] == null) {
+            if (!isSlotUsed(i)) {
                 sum += 1;
             }
         }
