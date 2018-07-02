@@ -273,7 +273,6 @@ public class HeapPage implements Page {
     	}
     	markSlotUsed(rid.getTupleNumber(), false);
     	tuples[rid.getTupleNumber()] = null;
-    	//t.setRecordId(null);
     }
 
     /**
@@ -299,6 +298,7 @@ public class HeapPage implements Page {
             	tuples[i] = t;
             	RecordId rid = new RecordId(pid, i);
             	t.setRecordId(rid);
+            	markSlotUsed(i, true);
             	break;
             }
         }  

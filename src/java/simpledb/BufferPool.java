@@ -91,16 +91,10 @@ public class BufferPool {
 		Page pg = null;
 		int pos = indexOfPage(pid);
 		if(pos == -1){
-			int validNum = getNumValidBuffers();
-			if(validNum == numPages){
-				evictPage();// lab 2.5
-			}
 			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
 					.readPage(pid);
-			int none = getFirstEmptyBuffer();
-			pos = none;
-			buffers[pos] = page;
-			pg = page;
+			pos = cachePage(page);
+			pg = buffers[pos];
 		}else{
 			pg = buffers[pos];
 		}
@@ -193,6 +187,7 @@ public class BufferPool {
 		Iterator<Page> it = arrayList.iterator();
 		while(it.hasNext()){
 			Page nextPage = it.next();
+			cachePage(nextPage);
 			nextPage.markDirty(true, tid);
 		}
 	}
@@ -223,6 +218,7 @@ public class BufferPool {
 		Iterator<Page> it = arrayList.iterator();
 		while(it.hasNext()){
 			Page nextPage = it.next();
+			cachePage(nextPage);
 			nextPage.markDirty(true, tid);
 		}
 	}
@@ -236,7 +232,7 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null){
+			if(buffers[i] != null && buffers[i].isDirty() != null){
 				flushPage(buffers[i].getId());
 			}
 		}
@@ -253,7 +249,6 @@ public class BufferPool {
 	public synchronized void discardPage(PageId pid) {
 		// some code goes here
 		// not necessary for lab1
-		//buffers.remove(pid);
 		int pos = indexOfPage(pid);
 		if(pos != -1){
 			buffers[pos] = null;
@@ -296,7 +291,7 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		PageId pid = null; 
-		int idx = getFirstCleanedBuffer();
+		int idx = getFirstDirtyBuffer();
 		pid = buffers[idx].getId();
 		try {
 			flushPage(pid);
@@ -337,14 +332,29 @@ public class BufferPool {
 		}
 		return idx;
 	}
-	private int getFirstCleanedBuffer(){
+	private int getFirstDirtyBuffer(){
 		int idx = -1;
 		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && (buffers[i].isDirty() == null)){
+			if(buffers[i] != null && (buffers[i].isDirty() != null)){
 				idx = i;
 				break;
 			}
 		}
 		return idx;
+	}
+	private int cachePage(Page pg) throws DbException{
+		int pos = indexOfPage(pg.getId());
+		if(pos != -1){
+			buffers[pos] = pg;
+		}else{
+			int validNum = getNumValidBuffers();
+			if(validNum == numPages){
+				evictPage();// lab 2.5
+			}
+			int none = getFirstEmptyBuffer();
+			pos = none;
+			buffers[pos] = pg;
+		}
+		return pos;
 	}
 }
