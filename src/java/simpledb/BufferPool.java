@@ -2,12 +2,7 @@ package simpledb;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from disk.
@@ -86,7 +81,6 @@ public class BufferPool {
 	public Page getPage(TransactionId tid, PageId pid, Permissions perm)
 			throws TransactionAbortedException, DbException {
 		// some code goes here
-	
 		//lockManager.lockPage(tid, perm, idx);
 		Page pg = null;
 		int pos = indexOfPage(pid);
@@ -122,7 +116,9 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1|lab2
 		int pos = indexOfPage(pid);
-		lockManager.unlockPage(tid, pos);
+		if(pos != -1 && holdsLock(tid, pid)){
+			lockManager.unlockPage(tid, pos);
+		}
 	}
 
 	/**
@@ -130,10 +126,12 @@ public class BufferPool {
 	 *
 	 * @param tid
 	 *            the ID of the transaction requesting the unlock
+	 * @throws InterruptedException 
 	 */
-	public void transactionComplete(TransactionId tid) throws IOException {
+	public void transactionComplete(TransactionId tid) throws IOException{
 		// some code goes here
 		// not necessary for lab1|lab2
+		transactionComplete(tid, true);
 	}
 
 	/**
@@ -143,6 +141,9 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1|lab2
 		int pos = indexOfPage(p);
+		if(pos == -1){
+			return false;
+		}
 		return lockManager.isHoldLock(tid, pos);
 	}
 
@@ -154,11 +155,33 @@ public class BufferPool {
 	 *            the ID of the transaction requesting the unlock
 	 * @param commit
 	 *            a flag indicating whether we should commit or abort
+	 * @throws InterruptedException 
 	 */
-	public void transactionComplete(TransactionId tid, boolean commit)
-			throws IOException {
+	public void transactionComplete(TransactionId tid, boolean commit) throws IOException{
 		// some code goes here
 		// not necessary for lab1|lab2
+		if(commit){
+			try {
+				flushPages(tid);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+    	for (int i=0; i<buffers.length; i++) {
+    		if (lockManager.isHoldLock(tid, i)) {
+    			if (!commit && null != buffers[i] &&
+    					tid.equals(buffers[i].isDirty())) {
+    				buffers[i] = null;
+    			}
+    			try {
+					lockManager.unlockPage(tid, i);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+    		}
+    	}
 	}
 
 	/**
@@ -280,6 +303,11 @@ public class BufferPool {
 	public synchronized void flushPages(TransactionId tid) throws IOException {
 		// some code goes here
 		// not necessary for lab1|lab2
+		for(int i = 0; i < buffers.length; ++i){
+			if(buffers[i] != null && holdsLock(tid, buffers[i].getId())){
+				flushPage(buffers[i].getId());
+			}
+		}
 	}
 
 	/**
@@ -291,16 +319,19 @@ public class BufferPool {
 		// some code goes here
 		// not necessary for lab1
 		PageId pid = null; 
-		int idx = getFirstDirtyBuffer();
+		int idx = getFirstCleanBuffer();
+		if(idx == -1){
+			throw new DbException("all pages are dirty");
+		}
 		pid = buffers[idx].getId();
 		try {
 			flushPage(pid);
+			buffers[idx] = null;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			throw new DbException("can not flush page" + pid.toString());
-		}
-		buffers[idx] = null;
+		}		
 	}
 	
 	private int indexOfPage(PageId pid){
@@ -332,10 +363,10 @@ public class BufferPool {
 		}
 		return idx;
 	}
-	private int getFirstDirtyBuffer(){
+	private int getFirstCleanBuffer(){
 		int idx = -1;
 		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && (buffers[i].isDirty() != null)){
+			if(buffers[i] != null && (buffers[i].isDirty() == null)){
 				idx = i;
 				break;
 			}

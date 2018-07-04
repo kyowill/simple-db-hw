@@ -1,12 +1,9 @@
 package simpledb;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.locks.Lock;
 
 public class LockManager {
 	private final Object[] mutexes;
@@ -27,17 +24,17 @@ public class LockManager {
 	
 	public void lockPage(TransactionId tid, Permissions perm, int idx) throws InterruptedException{
 		if(perm.permLevel == 0){
-			acquireReadlock(tid, idx);
+			acquireReadLock(tid, idx);
 		}else{
-			acquireWritelock(tid, idx);
+			acquireWriteLock(tid, idx);
 		}
 	}
 	
 	public boolean unlockPage(TransactionId tid, int idx) throws InterruptedException{
-		return releaseWritelock(tid, idx) || releaseReadlock(tid, idx);
+		return releaseWriteLock(tid, idx) || releaseReadLock(tid, idx);
 	}
 	
-	private void acquireReadlock(TransactionId tid, int idx) throws InterruptedException{
+	private void acquireReadLock(TransactionId tid, int idx) throws InterruptedException{
 		if(isHoldLock(tid, idx)){
 			return;
 		}
@@ -49,7 +46,7 @@ public class LockManager {
 		}
 	}
 	
-	private boolean releaseReadlock(TransactionId tid, int idx) throws InterruptedException{
+	private boolean releaseReadLock(TransactionId tid, int idx) throws InterruptedException{
 		if(!isHoldLock(tid, idx)){
 			return false;
 		}
@@ -62,7 +59,7 @@ public class LockManager {
 		}
 	}
 	
-	private void acquireWritelock(TransactionId tid, int idx) throws InterruptedException{
+	private void acquireWriteLock(TransactionId tid, int idx) throws InterruptedException{
 		if(isHoldLock(tid, idx)){
 			return;
 		}
@@ -74,7 +71,7 @@ public class LockManager {
 		}
 	}
 	
-	private boolean releaseWritelock(TransactionId tid, int idx){
+	private boolean releaseWriteLock(TransactionId tid, int idx){
 		if(!isHoldLock(tid, idx)){
 			return false;
 		}
@@ -86,16 +83,16 @@ public class LockManager {
 	}
 		
 	public boolean isHoldLock(TransactionId tid, int idx){
-		return holdsWriteLock(tid, idx) || holdsReadLock(tid, idx);
+		return holdWriteLock(tid, idx) || holdReadLock(tid, idx);
 	}
 	
-	private boolean holdsWriteLock(TransactionId tid, int idx){
+	private boolean holdWriteLock(TransactionId tid, int idx){
 		synchronized(mutexes[idx]) {
 			return tid.equals(writeLockHolders.get(idx));
 		}
 	}
 	
-	private boolean holdsReadLock(TransactionId tid, int idx){
+	private boolean holdReadLock(TransactionId tid, int idx){
 		synchronized(mutexes[idx]) {
 			return readLockHolders.get(idx).contains(tid);
 		}
