@@ -26,6 +26,7 @@ public class BufferPool {
 
 	private Page[] buffers;
 	private LockManager lockManager;
+	private int evictIdx = -1;
 	/**
 	 * Default number of pages passed to the constructor. This is used by other
 	 * classes. BufferPool should use the numPages argument to the constructor
@@ -327,6 +328,7 @@ public class BufferPool {
 		try {
 			flushPage(pid);
 			buffers[idx] = null;
+			evictIdx = idx;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -343,7 +345,7 @@ public class BufferPool {
 		return -1;
 	}
 	
-	private int getNumValidBuffers(){
+/*	private int getNumValidBuffers(){
 		int cnt = 0;
 		for(int i = 0; i < numPages; ++i){
 			if(buffers[i] != null){
@@ -351,7 +353,7 @@ public class BufferPool {
 			}
 		}
 		return cnt;
-	}
+	}*/
 	
 	private int getFirstEmptyBuffer(){
 		int idx = -1;
@@ -374,7 +376,7 @@ public class BufferPool {
 		return idx;
 	}
 	private int cachePage(Page pg) throws DbException{
-		int pos = indexOfPage(pg.getId());
+/*		int pos = indexOfPage(pg.getId());
 		if(pos != -1){
 			buffers[pos] = pg;
 		}else{
@@ -386,6 +388,14 @@ public class BufferPool {
 			pos = none;
 			buffers[pos] = pg;
 		}
+		return pos;
+		*/
+		int pos = getFirstEmptyBuffer();
+		if(pos == -1){
+			evictPage();
+			pos = evictIdx;
+		}
+		buffers[pos] = pg;
 		return pos;
 	}
 }
