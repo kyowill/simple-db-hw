@@ -208,7 +208,30 @@ public class BufferPool {
 		if(commit){
 			try{
 				flushPages(tid);
-			}catch()
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+		}else{
+    		for (PageId pid: buffers.keySet())
+    		{
+    			Page p = buffers.get(pid);
+    			if (tid.equals(p.isDirty()))
+    			{
+    				buffers.put(pid, p.getBeforeImage());
+    				p.markDirty(false, null);
+    			}
+    		}
+		}
+		for (PageId pid: buffers.keySet())
+		{
+			if (lockManager.isHoldLock(tid, pid)){
+				try {
+					lockManager.releaseLock(tid, pid);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 		}
 	}
 
@@ -333,7 +356,7 @@ public class BufferPool {
 		Page p = buffers.get(pid);
 		if(p != null){
 			Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(p);
-			p.markDirty(false, p.isDirty());
+			p.markDirty(false, null);
 		}
 	}
 

@@ -21,7 +21,6 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
 
     // clear all state from the buffer pool
     bp = Database.resetBufferPool(BufferPool.DEFAULT_PAGES);
-
     // create a new empty HeapFile and populate it with three pages.
     // we should be able to add 504 tuples on an empty page.
     TransactionId tid = new TransactionId();
