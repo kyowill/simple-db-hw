@@ -26,9 +26,7 @@ public class BufferPool {
 
 	private int numPages;
 
-	//private Page[] buffers;
 	private LockManager lockManager;
-	//private int evictIdx = -1;
 	private Map<PageId, Page> buffers;
 	/**
 	 * Default number of pages passed to the constructor. This is used by other
@@ -46,8 +44,6 @@ public class BufferPool {
 	public BufferPool(int numPages) {
 		// some code goes here
 		this.numPages = numPages;
-		//this.buffers = new Page[numPages];
-		//this.lockManager = new LockManager(numPages);
 		this.lockManager = new LockManager();
 		this.buffers = new ConcurrentHashMap<PageId, Page>();
 	}
@@ -88,23 +84,6 @@ public class BufferPool {
 	public Page getPage(TransactionId tid, PageId pid, Permissions perm)
 			throws TransactionAbortedException, DbException {
 		// some code goes here
-/*		Page pg = null;
-		int pos = indexOfPage(pid);
-		if(pos == -1){
-			Page page = Database.getCatalog().getDatabaseFile(pid.getTableId())
-					.readPage(pid);
-			pos = cachePage(page);
-			pg = buffers[pos];
-		}else{
-			pg = buffers[pos];
-		}
-		try {
-			lockManager.lockPage(tid, perm, pos);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return pg;*/
 		Page p = buffers.get(pid);
 		try {
 			lockManager.acquireLock(tid, perm, pid);
@@ -136,10 +115,6 @@ public class BufferPool {
 	public void releasePage(TransactionId tid, PageId pid) throws InterruptedException {
 		// some code goes here
 		// not necessary for lab1|lab2
-/*		int pos = indexOfPage(pid);
-		if(pos != -1 && holdsLock(tid, pid)){
-			lockManager.unlockPage(tid, pos);
-		}*/
 		lockManager.releaseLock(tid, pid);
 	}
 
@@ -162,11 +137,6 @@ public class BufferPool {
 	public boolean holdsLock(TransactionId tid, PageId pid) {
 		// some code goes here
 		// not necessary for lab1|lab2
-/*		int pos = indexOfPage(p);
-		if(pos == -1){
-			return false;
-		}
-		return lockManager.isHoldLock(tid, pos);*/
 		return lockManager.isHoldLock(tid, pid);
 	}
 
@@ -183,28 +153,6 @@ public class BufferPool {
 	public void transactionComplete(TransactionId tid, boolean commit) throws IOException{
 		// some code goes here
 		// not necessary for lab1|lab2
-/*		if(commit){
-			try {
-				flushPages(tid);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-    	for (int i=0; i<buffers.length; i++) {
-    		if (lockManager.isHoldLock(tid, i)) {
-    			if (!commit && null != buffers[i] &&
-    					tid.equals(buffers[i].isDirty())) {
-    				buffers[i] = null;
-    			}
-    			try {
-					lockManager.unlockPage(tid, i);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-    		}
-    	}*/
 		if(commit){
 			try{
 				flushPages(tid);
@@ -261,7 +209,6 @@ public class BufferPool {
 		Iterator<Page> it = arrayList.iterator();
 		while(it.hasNext()){
 			Page nextPage = it.next();
-			//cachePage(nextPage);
 			nextPage.markDirty(true, tid);
 			buffers.put(nextPage.getId(), nextPage);
 		}
@@ -293,7 +240,6 @@ public class BufferPool {
 		Iterator<Page> it = arrayList.iterator();
 		while(it.hasNext()){
 			Page nextPage = it.next();
-			//cachePage(nextPage);
 			nextPage.markDirty(true, tid);
 			buffers.put(nextPage.getId(), nextPage);
 		}
@@ -307,11 +253,6 @@ public class BufferPool {
 	public synchronized void flushAllPages() throws IOException {
 		// some code goes here
 		// not necessary for lab1
-/*		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].isDirty() != null){
-				flushPage(buffers[i].getId());
-			}
-		}*/
     	for (PageId pid:buffers.keySet())
     	{
     		flushPage(pid);
@@ -329,10 +270,6 @@ public class BufferPool {
 	public synchronized void discardPage(PageId pid) {
 		// some code goes here
 		// not necessary for lab1
-/*		int pos = indexOfPage(pid);
-		if(pos != -1){
-			buffers[pos] = null;
-		}*/
 		buffers.remove(pid);
 	}
 
@@ -345,14 +282,6 @@ public class BufferPool {
 	private synchronized void flushPage(PageId pid) throws IOException {
 		// some code goes here
 		// not necessary for lab1
-/*		int pos = indexOfPage(pid);
-		if(pos == -1){
-			throw new IOException("page not exist in bufferpool");
-		}
-		Page pg = buffers[pos];
-		Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(pg);
-		//mark not dirty
-		pg.markDirty(false, pg.isDirty());*/
 		Page p = buffers.get(pid);
 		if(p != null){
 			Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(p);
@@ -366,11 +295,6 @@ public class BufferPool {
 	public synchronized void flushPages(TransactionId tid) throws IOException {
 		// some code goes here
 		// not necessary for lab1|lab2
-/*		for(int i = 0; i < buffers.length; ++i){
-			if(buffers[i] != null && holdsLock(tid, buffers[i].getId())){
-				flushPage(buffers[i].getId());
-			}
-		}*/
     	for (PageId pid:buffers.keySet())
     	{
     		if(buffers.get(pid) != null && holdsLock(tid, pid)){
@@ -387,21 +311,6 @@ public class BufferPool {
 	private synchronized void evictPage() throws DbException {
 		// some code goes here
 		// not necessary for lab1
-/*		PageId pid = null; 
-		int idx = getFirstCleanBuffer();
-		if(idx == -1){
-			throw new DbException("all pages are dirty");
-		}
-		pid = buffers[idx].getId();
-		try {
-			flushPage(pid);
-			buffers[idx] = null;
-			evictIdx = idx;
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			throw new DbException("can not flush page" + pid.toString());
-		}*/
 		for (PageId pid:buffers.keySet()){
 			try {
 				if(buffers.get(pid).isDirty() == null){
@@ -415,60 +324,4 @@ public class BufferPool {
 			}
 		}
 	}
-	
-/*	private int indexOfPage(PageId pid){
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && buffers[i].getId().equals(pid)){
-				return i;
-			}
-		}
-		return -1;
-	}
-	
-	private int getNumValidBuffers(){
-		int cnt = 0;
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null){
-				cnt += 1;
-			}
-		}
-		return cnt;
-	}
-	
-	private int getFirstEmptyBuffer(){
-		int idx = -1;
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] == null){
-				idx = i;
-				break;
-			}
-		}
-		return idx;
-	}
-	private int getFirstCleanBuffer(){
-		int idx = -1;
-		for(int i = 0; i < numPages; ++i){
-			if(buffers[i] != null && (buffers[i].isDirty() == null)){
-				idx = i;
-				break;
-			}
-		}
-		return idx;
-	}
-	private int cachePage(Page pg) throws DbException{
-		int pos = indexOfPage(pg.getId());
-		if(pos != -1){
-			buffers[pos] = pg;
-		}else{
-			int validNum = getNumValidBuffers();
-			if(validNum == numPages){
-				evictPage();// lab 2.5
-			}
-			int none = getFirstEmptyBuffer();
-			pos = none;
-			buffers[pos] = pg;
-		}
-		return pos;
-		
-	}*/
 }
