@@ -3,6 +3,7 @@ package simpledb;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +24,12 @@ public class LockManager {
 	}
 
 	public void acquireLock(TransactionId tid,Permissions perm, PageId pid) throws InterruptedException {
+		if(dirtyPages.get(tid) == null){
+			dirtyPages.put(tid, new HashSet<PageId>());
+		}
+		if(readLockHolders.get(pid) == null){
+			readLockHolders.put(pid, new HashSet<TransactionId>());
+		}
 		if(perm.permLevel == 0){
 			acquireReadLock(tid, pid);
 		}else{
@@ -40,12 +47,6 @@ public class LockManager {
 			return;
 		}
 		locks.putIfAbsent(pid, tid);
-		if(readLockHolders.get(pid) == null){
-			readLockHolders.put(pid, new HashSet<TransactionId>());
-		}
-		if(dirtyPages.get(tid) == null){
-			dirtyPages.put(tid, new HashSet<PageId>());
-		}
 		synchronized (locks.get(pid)) {
 			while(writeLockHolders.get(pid) != null){
 				locks.get(pid).wait();
@@ -74,12 +75,6 @@ public class LockManager {
 			return;
 		}
 		locks.putIfAbsent(pid, tid);
-		if(readLockHolders.get(pid) == null){
-			readLockHolders.put(pid, new HashSet<TransactionId>());
-		}
-		if(dirtyPages.get(tid) == null){
-			dirtyPages.put(tid, new HashSet<PageId>());
-		}
 		synchronized (locks.get(pid)) {
 			while(readLockHolders.get(pid).size() != 0){
 				locks.get(pid).wait();
@@ -132,7 +127,12 @@ public class LockManager {
 		if(dirtyPages.get(tid) == null || dirtyPages.get(tid).size() == 0){
 			return;
 		}
-		for(PageId pid: dirtyPages.get(tid)){
+		Iterator<PageId> iter = dirtyPages.get(tid).iterator();
+		while(iter.hasNext()){
+			PageId pid = iter.next(); 
+			if(pid == null){
+				continue;
+			}
 			try {
 				releaseLock(tid, pid);
 			} catch (InterruptedException e) {
