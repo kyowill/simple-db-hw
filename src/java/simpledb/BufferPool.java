@@ -125,10 +125,15 @@ public class BufferPool {
 	 *            the ID of the transaction requesting the unlock
 	 * @throws InterruptedException 
 	 */
-	public void transactionComplete(TransactionId tid) throws IOException{
+	public void transactionComplete(TransactionId tid) {
 		// some code goes here
 		// not necessary for lab1|lab2
-		transactionComplete(tid, true);
+		try {
+			transactionComplete(tid, true);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -170,7 +175,7 @@ public class BufferPool {
     			}
     		}
 		}
-		for (PageId pid: buffers.keySet())
+/*		for (PageId pid: buffers.keySet())
 		{
 			if (lockManager.isHoldLock(tid, pid)){
 				try {
@@ -180,7 +185,8 @@ public class BufferPool {
 					e.printStackTrace();
 				}
 			}
-		}
+		}*/
+		lockManager.releaseLock(tid);
 	}
 
 	/**

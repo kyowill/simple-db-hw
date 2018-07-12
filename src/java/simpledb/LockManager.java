@@ -11,13 +11,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LockManager {
 	private final int MIN_TIME = 100, MAX_TIME = 1000;
 	private final ConcurrentHashMap<PageId, Object> locks;
-	private final Map<PageId, List<TransactionId>> readLockHolders;
+	private final Map<PageId, Set<TransactionId>> readLockHolders;
 	private final Map<PageId, TransactionId> writeLockHolders;
+	private final Map<TransactionId, Set<PageId>> dirtyPages; 
 	
 	public LockManager(){
 		locks = new ConcurrentHashMap<PageId, Object>();
-		readLockHolders = new ConcurrentHashMap<PageId, List<TransactionId>>();
+		readLockHolders = new ConcurrentHashMap<PageId, Set<TransactionId>>();
 		writeLockHolders = new ConcurrentHashMap<PageId, TransactionId>();
+		dirtyPages = new ConcurrentHashMap<TransactionId, Set<PageId>>();
 	}
 
 	public void acquireLock(TransactionId tid,Permissions perm, PageId pid) throws InterruptedException {
@@ -39,13 +41,17 @@ public class LockManager {
 		}
 		locks.putIfAbsent(pid, tid);
 		if(readLockHolders.get(pid) == null){
-			readLockHolders.put(pid, new ArrayList<TransactionId>());
+			readLockHolders.put(pid, new HashSet<TransactionId>());
+		}
+		if(dirtyPages.get(tid) == null){
+			dirtyPages.put(tid, new HashSet<PageId>());
 		}
 		synchronized (locks.get(pid)) {
 			while(writeLockHolders.get(pid) != null){
 				locks.get(pid).wait();
 			}
 			readLockHolders.get(pid).add(tid);
+			dirtyPages.get(tid).add(pid);
 		}
 	}
 	
@@ -55,6 +61,7 @@ public class LockManager {
 		}
 		synchronized (locks.get(pid)) {
 			readLockHolders.get(pid).remove(tid);
+			dirtyPages.get(tid).remove(pid);
 			if(readLockHolders.get(pid).size() == 0){
 				locks.get(pid).notifyAll();
 			}
@@ -68,13 +75,17 @@ public class LockManager {
 		}
 		locks.putIfAbsent(pid, tid);
 		if(readLockHolders.get(pid) == null){
-			readLockHolders.put(pid, new ArrayList<TransactionId>());
+			readLockHolders.put(pid, new HashSet<TransactionId>());
+		}
+		if(dirtyPages.get(tid) == null){
+			dirtyPages.put(tid, new HashSet<PageId>());
 		}
 		synchronized (locks.get(pid)) {
 			while(readLockHolders.get(pid).size() != 0){
 				locks.get(pid).wait();
 			}
 			writeLockHolders.put(pid, tid);
+			dirtyPages.get(tid).add(pid);
 		}
 	}
 	
@@ -84,6 +95,7 @@ public class LockManager {
 		}
 		synchronized (locks.get(pid)) {
 			writeLockHolders.remove(pid, tid);
+			dirtyPages.get(tid).remove(pid);
 			locks.get(pid).notifyAll();
 			return true;
 		}
@@ -113,6 +125,20 @@ public class LockManager {
 				readLockHolders.get(pid).clear();
 			}
 			return owned;
+		}
+	}
+	
+	public void releaseLock(TransactionId tid){
+		if(dirtyPages.get(tid) == null || dirtyPages.get(tid).size() == 0){
+			return;
+		}
+		for(PageId pid: dirtyPages.get(tid)){
+			try {
+				releaseLock(tid, pid);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 }
