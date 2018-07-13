@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -26,7 +27,7 @@ public class LockManager {
 
 	public void acquireLock(TransactionId tid,Permissions perm, PageId pid) throws InterruptedException {
 		if(dirtyPages.get(tid) == null){
-			dirtyPages.put(tid, new LinkedList<PageId>());
+			dirtyPages.put(tid, new ArrayList<PageId>());
 		}
 		if(readLockHolders.get(pid) == null){
 			readLockHolders.put(pid, new HashSet<TransactionId>());
