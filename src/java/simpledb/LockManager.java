@@ -49,7 +49,9 @@ public class LockManager {
 			return false;
 		}
 		boolean done = releaseWriteLock(tid, pid) || releaseReadLock(tid, pid);
-		dirtyPages.get(tid).remove(pid);
+		if(done){
+			dirtyPages.get(tid).remove(pid);
+		}
 		return done;
 	}
 	
@@ -119,16 +121,15 @@ public class LockManager {
 	}
 	
 	public void releaseLock(TransactionId tid){
-		List<PageId> pageIds = dirtyPages.get(tid);
+		List<PageId> pageIds = new ArrayList<PageId>(dirtyPages.get(tid));
 		for(PageId pid: pageIds){
 			try {
-				System.out.println(pid);
 				releaseLock(tid, pid);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		dirtyPages.remove(tid);
+		dirtyPages.put(tid, new ArrayList<PageId>());
 	}
 }

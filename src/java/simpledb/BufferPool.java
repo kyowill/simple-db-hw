@@ -175,17 +175,6 @@ public class BufferPool {
     			}
     		}
 		}
-/*		for (PageId pid: buffers.keySet())
-		{
-			if (lockManager.isHoldLock(tid, pid)){
-				try {
-					lockManager.releaseLock(tid, pid);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		}*/
 		lockManager.releaseLock(tid);
 	}
 
