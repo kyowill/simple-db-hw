@@ -90,6 +90,13 @@ public class BufferPool {
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			try {
+				transactionComplete(tid, false);
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			throw new TransactionAbortedException();
 		}
 		if(p == null){
 			p = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);

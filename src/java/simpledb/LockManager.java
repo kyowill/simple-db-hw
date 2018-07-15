@@ -9,10 +9,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LockManager {
-	private final int MIN_TIME = 100, MAX_TIME = 1000;
+	private final int MIN_TIME = 100, MAX_TIME = 200;
 	private final ConcurrentHashMap<PageId, Object> locks;
 	private final Map<PageId, Set<TransactionId>> readLockHolders;
 	private final Map<PageId, TransactionId> writeLockHolders;
@@ -58,6 +60,14 @@ public class LockManager {
 	private void acquireReadLock(TransactionId tid, PageId pid) throws InterruptedException {
 		locks.putIfAbsent(pid, tid);
 		synchronized (locks.get(pid)) {
+			final Thread thread = Thread.currentThread();
+			final Timer timer = new Timer(true);
+			
+			timer.schedule(new TimerTask() {
+				@Override public void run() {
+					thread.interrupt();
+				}
+			}, MIN_TIME);
 			while(writeLockHolders.get(pid) != null){
 				locks.get(pid).wait();
 			}
@@ -78,6 +88,14 @@ public class LockManager {
 	private void acquireWriteLock(TransactionId tid, PageId pid) throws InterruptedException{
 		locks.putIfAbsent(pid, tid);
 		synchronized (locks.get(pid)) {
+			final Thread thread = Thread.currentThread();
+			final Timer timer = new Timer(true);
+			
+			timer.schedule(new TimerTask() {
+				@Override public void run() {
+					thread.interrupt();
+				}
+			}, MIN_TIME);
 			while(readLockHolders.get(pid).size() != 0){
 				locks.get(pid).wait();
 			}
