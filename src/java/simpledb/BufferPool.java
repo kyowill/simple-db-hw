@@ -85,27 +85,22 @@ public class BufferPool {
 			throws TransactionAbortedException, DbException {
 		// some code goes here
 		Page p = buffers.get(pid);
-		try {
-			lockManager.acquireLock(tid, perm, pid);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if(p != null){
 			try {
-				transactionComplete(tid, false);
-			} catch (IOException e1) {
+				lockManager.acquireLock(tid, perm, pid);
+			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				throw new TransactionAbortedException();
 			}
-			throw new TransactionAbortedException();
-		}
-		if(p == null){
+			return p;
+		}else{
 			p = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
 			if(buffers.size() > numPages){
 				evictPage();
 			}
 			buffers.put(pid, p);
+			return getPage(tid, pid, perm);
 		}
-		return p;
 	}
 
 	/**

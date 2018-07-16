@@ -14,7 +14,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LockManager {
-	private final int MIN_TIME = 100, MAX_TIME = 200;
+	private final int MIN_TIME = 100, MAX_TIME = 1000;
 	private final ConcurrentHashMap<PageId, Object> locks;
 	private final Map<PageId, Set<TransactionId>> readLockHolders;
 	private final Map<PageId, TransactionId> writeLockHolders;
@@ -34,7 +34,13 @@ public class LockManager {
 		if(readLockHolders.get(pid) == null){
 			readLockHolders.put(pid, new HashSet<TransactionId>());
 		}
-		if(isHoldLock(tid, pid)){
+/*		if(isHoldLock(tid, pid)){
+			return;
+		}*/
+		if(perm.permLevel == 0 && holdReadLock(tid, pid)){
+			return;
+		}
+		if(perm.permLevel == 1 && holdWriteLock(tid, pid)){
 			return;
 		}
 		if(perm.permLevel == 0){
@@ -72,6 +78,8 @@ public class LockManager {
 				locks.get(pid).wait();
 			}
 			readLockHolders.get(pid).add(tid);
+			System.out.println("read:pid :" + pid.toString() + "tid:" + tid.toString());
+			timer.cancel();
 		}
 	}
 	
@@ -95,11 +103,13 @@ public class LockManager {
 				@Override public void run() {
 					thread.interrupt();
 				}
-			}, MIN_TIME);
-			while(readLockHolders.get(pid).size() != 0){
+			}, MAX_TIME);
+			while(readLockHolders.get(pid).size() != 0 || writeLockHolders.get(pid) != null){
 				locks.get(pid).wait();
 			}
 			writeLockHolders.put(pid, tid);
+			System.out.println("write:pid :" + pid.toString() + "tid:" + tid.toString());
+			timer.cancel();
 		}
 	}
 	
