@@ -34,9 +34,6 @@ public class LockManager {
 		if(readLockHolders.get(pid) == null){
 			readLockHolders.put(pid, new HashSet<TransactionId>());
 		}
-/*		if(isHoldLock(tid, pid)){
-			return;
-		}*/
 		if(perm.permLevel == 0 && holdReadLock(tid, pid)){
 			return;
 		}
@@ -52,15 +49,14 @@ public class LockManager {
 	}
 
 	
-	public boolean releaseLock(TransactionId tid, PageId pid) throws InterruptedException{
-		if(!isHoldLock(tid, pid)){
-			return false;
+	public void releaseLock(TransactionId tid, PageId pid) throws InterruptedException{
+		if(holdReadLock(tid, pid)){
+			releaseReadLock(tid, pid);
 		}
-		boolean done = releaseWriteLock(tid, pid) || releaseReadLock(tid, pid);
-		if(done){
-			dirtyPages.get(tid).remove(pid);
+		if(holdWriteLock(tid, pid)){
+			releaseWriteLock(tid, pid);
 		}
-		return done;
+		dirtyPages.get(tid).remove(pid);
 	}
 	
 	private void acquireReadLock(TransactionId tid, PageId pid) throws InterruptedException {
@@ -75,21 +71,23 @@ public class LockManager {
 				}
 			}, MIN_TIME);
 			while(writeLockHolders.get(pid) != null){
+				if(tid.equals(writeLockHolders.get(pid))){
+					break;
+				}
 				locks.get(pid).wait();
 			}
 			readLockHolders.get(pid).add(tid);
-			System.out.println("read:pid :" + pid.toString() + "tid:" + tid.toString());
+			//System.out.println("read:pid :" + pid.toString() + "tid:" + tid.toString());
 			timer.cancel();
 		}
 	}
 	
-	private boolean releaseReadLock(TransactionId tid, PageId pid) throws InterruptedException{
+	private void releaseReadLock(TransactionId tid, PageId pid) throws InterruptedException{
 		synchronized (locks.get(pid)) {
 			readLockHolders.get(pid).remove(tid);
 			if(readLockHolders.get(pid).size() == 0){
 				locks.get(pid).notifyAll();
 			}
-			return true;
 		}
 	}
 	
@@ -103,21 +101,23 @@ public class LockManager {
 				@Override public void run() {
 					thread.interrupt();
 				}
-			}, MAX_TIME);
+			}, MIN_TIME);
 			while(readLockHolders.get(pid).size() != 0 || writeLockHolders.get(pid) != null){
+				if(readLockHolders.get(pid).size() == 1 && readLockHolders.get(pid).contains(tid)){
+					break;
+				}
 				locks.get(pid).wait();
 			}
 			writeLockHolders.put(pid, tid);
-			System.out.println("write:pid :" + pid.toString() + "tid:" + tid.toString());
+			//System.out.println("write:pid :" + pid.toString() + "tid:" + tid.toString());
 			timer.cancel();
 		}
 	}
 	
-	private boolean releaseWriteLock(TransactionId tid, PageId pid){
+	private void releaseWriteLock(TransactionId tid, PageId pid){
 		synchronized (locks.get(pid)) {
 			writeLockHolders.remove(pid, tid);
 			locks.get(pid).notifyAll();
-			return true;
 		}
 	}
 	
@@ -139,12 +139,7 @@ public class LockManager {
 			return false;
 		}
 		synchronized(locks.get(pid)) {
-			boolean owned  = readLockHolders.get(pid).contains(tid);
-			if(owned && readLockHolders.get(pid).size() == 1){
-				writeLockHolders.put(pid, tid);
-				readLockHolders.get(pid).clear();
-			}
-			return owned;
+			return readLockHolders.get(pid).contains(tid);
 		}
 	}
 	
