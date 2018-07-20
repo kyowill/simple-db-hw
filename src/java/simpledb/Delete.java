@@ -13,10 +13,11 @@ public class Delete extends Operator {
     private static final long serialVersionUID = 1L;
     private TransactionId tid;
     private OpIterator child;
-    private int times;
+    //private int times;
     private TupleDesc td;
     private ArrayList<Tuple> recs = new ArrayList<Tuple>();
     private Iterator<Tuple> iter = null;
+    private boolean fetched = false;
     /**
      * Constructor specifying the transaction that this delete belongs to as
      * well as the child to read from.
@@ -43,18 +44,22 @@ public class Delete extends Operator {
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
     	super.open();
-    	deleteTuples();
-    	iter = recs.iterator();
+    	child.open();
+    	//deleteTuples();
+    	//iter = recs.iterator();
     }
 
     public void close() {
         // some code goes here
     	super.close();
+    	child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
-    	iter = recs.iterator();
+    	//iter = recs.iterator();
+    	close();
+    	open();
     }
 
     /**
@@ -69,10 +74,35 @@ public class Delete extends Operator {
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
         //return null;
-    	if(iter.hasNext()){
+    	//deleteTuples();
+/*    	if(iter.hasNext()){
     		return iter.next();
     	}
-    	return null;
+    	return null;*/
+       	Tuple t = new Tuple(td);
+       	int count=0;
+       	try{
+       		if (fetched)
+       			return null;
+       		fetched = true;
+       		while(child.hasNext())
+       		{
+       			Tuple tup = child.next();
+       			Database.getBufferPool().deleteTuple(tid, tup);
+       			count++;
+       		}
+       	}
+       	catch (DbException e)
+       	{
+       		e.printStackTrace();
+       	}
+       	catch (IOException e)
+       	{
+       		e.printStackTrace();
+       	}
+       	Field fd = new IntField(count);
+       	t.setField(0, fd);
+       	return t;
     }
 
     @Override
@@ -88,7 +118,7 @@ public class Delete extends Operator {
     	child = children[0];
     }
 
-    private void deleteTuples() throws DbException, TransactionAbortedException{
+/*    private void deleteTuples() throws DbException, TransactionAbortedException{
     	child.open();
     	while(child.hasNext()){
     		Tuple t = child.next();
@@ -106,5 +136,5 @@ public class Delete extends Operator {
 		rec.setField(0, new IntField(times));
 		recs.clear();
 		recs.add(rec);
-    }
+    }*/
 }
