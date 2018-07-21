@@ -15,9 +15,10 @@ public class Delete extends Operator {
     private OpIterator child;
     //private int times;
     private TupleDesc td;
-    private ArrayList<Tuple> recs = new ArrayList<Tuple>();
-    private Iterator<Tuple> iter = null;
+    //private ArrayList<Tuple> recs = new ArrayList<Tuple>();
+    //private Iterator<Tuple> iter = null;
     private boolean fetched = false;
+    //private boolean deleted = false;
     /**
      * Constructor specifying the transaction that this delete belongs to as
      * well as the child to read from.
@@ -46,7 +47,6 @@ public class Delete extends Operator {
     	super.open();
     	child.open();
     	//deleteTuples();
-    	//iter = recs.iterator();
     }
 
     public void close() {

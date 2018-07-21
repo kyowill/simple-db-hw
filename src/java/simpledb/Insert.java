@@ -17,10 +17,11 @@ public class Insert extends Operator {
     private TransactionId transactionId;
     private OpIterator child;
     private int tableId;
-    private int times;
+    //private int times;
     private TupleDesc td;
-    private ArrayList<Tuple> recs = new ArrayList<Tuple>();
-    private Iterator<Tuple> iter = null;
+    //private ArrayList<Tuple> recs = new ArrayList<Tuple>();
+    //private Iterator<Tuple> iter = null;
+    private boolean fetched = false;
     /**
      * Constructor.
      *
@@ -58,18 +59,22 @@ public class Insert extends Operator {
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
     	super.open();
-    	insertTuples();
-    	iter = recs.iterator();
+    	//insertTuples();
+    	//iter = recs.iterator();
+    	child.open();
     }
 
     public void close() {
         // some code goes here
     	super.close();
+    	child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
-    	iter = recs.iterator();
+    	//iter = recs.iterator();
+    	close();
+    	open();
     }
 
     /**
@@ -89,10 +94,34 @@ public class Insert extends Operator {
     protected Tuple fetchNext() throws TransactionAbortedException, DbException{
         // some code goes here
         //return null;
-    	if(iter.hasNext()){
+/*    	if(iter.hasNext()){
     		return iter.next();
     	}
-    	return null;
+    	return null;*/
+       	Tuple t = new Tuple(td);
+       	int count=0;
+       	try{
+       		if (fetched)
+       			return null;
+       		fetched = true;
+       		while(child.hasNext())
+       		{
+       			Tuple tup = child.next();
+       			Database.getBufferPool().insertTuple(transactionId, tableId, tup);
+       			count++;
+       		}
+       	}
+       	catch (DbException e)
+       	{
+       		e.printStackTrace();
+       	}
+       	catch (IOException e)
+       	{
+       		e.printStackTrace();
+       	}
+       	Field fd = new IntField(count);
+       	t.setField(0, fd);
+       	return t;
     }
 
     @Override
@@ -108,7 +137,7 @@ public class Insert extends Operator {
     	child = children[0];
     }
     
-    private void insertTuples() throws DbException, TransactionAbortedException{
+/*    private void insertTuples() throws DbException, TransactionAbortedException{
     	child.open();
     	while(child.hasNext()){
     		Tuple t = child.next();
@@ -126,5 +155,5 @@ public class Insert extends Operator {
 		rec.setField(0, new IntField(times));
 		recs.clear();
 		recs.add(rec);
-    }
+    }*/
 }
