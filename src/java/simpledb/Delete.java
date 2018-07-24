@@ -88,6 +88,7 @@ public class Delete extends Operator {
        		while(child.hasNext())
        		{
        			Tuple tup = child.next();
+       			System.out.println("delete loop-"+Thread.currentThread().getId() + ":" + ((IntField)tup.getField(0)).getValue());
        			Database.getBufferPool().deleteTuple(tid, tup);
        			count++;
        		}

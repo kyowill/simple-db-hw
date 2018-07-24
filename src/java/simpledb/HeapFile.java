@@ -217,5 +217,6 @@ public class HeapFile implements DbFile {
 			it = null;
 			cursor = 0;
 		}
+		
 	}
 }

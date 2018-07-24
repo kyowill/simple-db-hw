@@ -107,6 +107,7 @@ public class Insert extends Operator {
        		while(child.hasNext())
        		{
        			Tuple tup = child.next();
+       			System.out.println("insert loop-"+Thread.currentThread().getId() + ":" + ((IntField)tup.getField(0)).getValue());
        			Database.getBufferPool().insertTuple(transactionId, tableId, tup);
        			count++;
        		}

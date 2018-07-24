@@ -23,7 +23,7 @@ public class AbortEvictionTest extends SimpleDbTestBase {
 
         // Insert a new row
         EvictionTest.insertRow(f, t);
-
+        int numpage = f.numPages();
         // The tuple must exist in the table
         boolean found = EvictionTest.findMagicTuple(f, t);
         assertTrue(found);
