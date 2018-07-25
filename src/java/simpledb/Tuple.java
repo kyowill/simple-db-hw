@@ -59,6 +59,7 @@ public class Tuple implements Serializable {
     public void setRecordId(RecordId rid) {
         // some code goes here
     	this.rid = rid;
+    	System.out.println("set record:" + Thread.currentThread().getId() + ":" + rid.toString());
     }
 
     /**

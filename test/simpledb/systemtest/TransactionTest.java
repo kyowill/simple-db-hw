@@ -90,6 +90,7 @@ public class TransactionTest extends SimpleDbTestBase {
                     Transaction tr = new Transaction();
                     try {
                         tr.start();
+                        System.out.println("tr start:" + tr.getId().getId());
                         SeqScan ss1 = new SeqScan(tr.getId(), tableId, "");
                         SeqScan ss2 = new SeqScan(tr.getId(), tableId, "");
 
@@ -118,7 +119,7 @@ public class TransactionTest extends SimpleDbTestBase {
 
                         q2.start();
                         Tuple t2 = q2.next();
-                        System.out.println("after delete:" + Thread.currentThread().getId() + ":" +( (IntField)t2.getField(0)).getValue());
+                        //System.out.println("after delete:" + Thread.currentThread().getId() + ":" +( (IntField)t2.getField(0)).getValue());
                         q2.close();
                         
                         // set up a Set with a tuple that is one higher than the old one.
@@ -131,10 +132,11 @@ public class TransactionTest extends SimpleDbTestBase {
                         Query q3 = new Query(insOp, tr.getId());
                         q3.start();
                         Tuple t3 = q3.next();
-                        System.out.println("after insert:" + Thread.currentThread().getId() + ":" +( (IntField)t3.getField(0)).getValue());
+                        //System.out.println("after insert:" + Thread.currentThread().getId() + ":" +( (IntField)t3.getField(0)).getValue());
                         q3.close();
 
                         tr.commit();
+                        System.out.println("tranaction commit:" + Thread.currentThread().getId());
                         break;
                     } catch (TransactionAbortedException te) {
                         //System.out.println("thread " + tr.getId() + " killed");
