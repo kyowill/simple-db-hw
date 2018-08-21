@@ -107,7 +107,7 @@ public class Insert extends Operator {
        		while(child.hasNext())
        		{
        			Tuple tup = child.next();
-       			System.out.println("insert loop-"+Thread.currentThread().getId() + ":" + ((IntField)tup.getField(0)).getValue());
+       			//System.out.println("insert loop-thread id:"+Thread.currentThread().getId() + ":" + ((IntField)tup.getField(0)).getValue());
        			Database.getBufferPool().insertTuple(transactionId, tableId, tup);
        			count++;
        		}
@@ -137,24 +137,4 @@ public class Insert extends Operator {
         // some code goes here
     	child = children[0];
     }
-    
-/*    private void insertTuples() throws DbException, TransactionAbortedException{
-    	child.open();
-    	while(child.hasNext()){
-    		Tuple t = child.next();
-    		try {
-				Database.getBufferPool().insertTuple(transactionId, tableId, t);
-				times += 1;
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				break;
-			}
-    	}
-    	child.close();
-		Tuple rec = new Tuple(td);
-		rec.setField(0, new IntField(times));
-		recs.clear();
-		recs.add(rec);
-    }*/
 }

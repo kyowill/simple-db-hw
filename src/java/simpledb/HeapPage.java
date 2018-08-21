@@ -273,7 +273,7 @@ public class HeapPage implements Page {
     	}
     	markSlotUsed(rid.getTupleNumber(), false);
     	tuples[rid.getTupleNumber()] = null;
-    	System.out.println("delete success:" + Thread.currentThread().getId() + ":" + ((IntField)t.getField(0)).getValue());
+    	//System.out.println("delete success:" + Thread.currentThread().getId() + ":" + ((IntField)t.getField(0)).getValue());
     }
 
     /**
@@ -303,7 +303,7 @@ public class HeapPage implements Page {
             	break;
             }
         }
-        System.out.println("insert success:" + Thread.currentThread().getId() + ":" + ((IntField)t.getField(0)).getValue());
+        //System.out.println("insert success:" + Thread.currentThread().getId() + ":" + ((IntField)t.getField(0)).getValue());
     }
 
     /**

@@ -88,7 +88,7 @@ public class Delete extends Operator {
        		while(child.hasNext())
        		{
        			Tuple tup = child.next();
-       			System.out.println("delete loop-"+Thread.currentThread().getId() + ":" + ((IntField)tup.getField(0)).getValue());
+       			//System.out.println("delete loop thread id:"+Thread.currentThread().getId() + ":" + ((IntField)tup.getField(0)).getValue());
        			Database.getBufferPool().deleteTuple(tid, tup);
        			count++;
        		}
@@ -118,24 +118,4 @@ public class Delete extends Operator {
         // some code goes here
     	child = children[0];
     }
-
-/*    private void deleteTuples() throws DbException, TransactionAbortedException{
-    	child.open();
-    	while(child.hasNext()){
-    		Tuple t = child.next();
-    		try {
-				Database.getBufferPool().deleteTuple(tid, t);
-				times += 1;
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				break;
-			}
-    	}
-    	child.close();
-		Tuple rec = new Tuple(td);
-		rec.setField(0, new IntField(times));
-		recs.clear();
-		recs.add(rec);
-    }*/
 }

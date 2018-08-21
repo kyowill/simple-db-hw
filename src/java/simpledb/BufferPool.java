@@ -84,12 +84,13 @@ public class BufferPool {
 	public Page getPage(TransactionId tid, PageId pid, Permissions perm)
 			throws TransactionAbortedException, DbException {
 		// some code goes here
-		Page p = buffers.get(pid);
+/*		Page p = buffers.get(pid);
 		if(p != null){
 			try {
 				lockManager.acquireLock(tid, perm, pid);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
+				System.out.println("time out!");
 				throw new TransactionAbortedException();
 			}
 			return p;
@@ -100,7 +101,23 @@ public class BufferPool {
 			}
 			buffers.put(pid, p);
 			return getPage(tid, pid, perm);
+		}*/
+		try {
+			lockManager.acquireLock(tid, perm, pid);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			System.out.println("time out!");
+			throw new TransactionAbortedException();
 		}
+		Page p = buffers.get(pid);
+		if(p == null){
+			p = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
+			if(buffers.size() > numPages){
+				evictPage();
+			}
+			buffers.put(pid, p);
+		}
+		return p;
 	}
 
 	/**
