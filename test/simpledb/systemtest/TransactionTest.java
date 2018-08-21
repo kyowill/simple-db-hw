@@ -96,16 +96,18 @@ public class TransactionTest extends SimpleDbTestBase {
 
                         // read the value out of the table
                         Query q1 = new Query(ss1, tr.getId());
+                        System.out.println("thread id:" + Thread.currentThread().getId());
                         q1.start();
+                        System.out.println("thread id transaction start:" + Thread.currentThread().getId());
                         Tuple tup = q1.next();
                         IntField intf = (IntField) tup.getField(0);
                         int i = intf.getValue();
-                        System.out.println("" + Thread.currentThread().getId() + ":" + i);
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + i);
                         // create a Tuple so that Insert can insert this new value
                         // into the table.
                         Tuple t = new Tuple(SystemTestUtil.SINGLE_INT_DESCRIPTOR);
                         t.setField(0, new IntField(i+1));
-                        System.out.println("" + Thread.currentThread().getId() + ":" +( (IntField)t.getField(0)).getValue());
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" +( (IntField)t.getField(0)).getValue());
                         // sleep to get some interesting thread interleavings
                         Thread.sleep(1);
 
@@ -119,7 +121,6 @@ public class TransactionTest extends SimpleDbTestBase {
 
                         q2.start();
                         Tuple t2 = q2.next();
-                        //System.out.println("after delete:" + Thread.currentThread().getId() + ":" +( (IntField)t2.getField(0)).getValue());
                         q2.close();
                         
                         // set up a Set with a tuple that is one higher than the old one.
@@ -132,7 +133,6 @@ public class TransactionTest extends SimpleDbTestBase {
                         Query q3 = new Query(insOp, tr.getId());
                         q3.start();
                         Tuple t3 = q3.next();
-                        //System.out.println("after insert:" + Thread.currentThread().getId() + ":" +( (IntField)t3.getField(0)).getValue());
                         q3.close();
 
                         tr.commit();
@@ -217,7 +217,7 @@ public class TransactionTest extends SimpleDbTestBase {
 
     @Test public void testTwoThreads()
             throws IOException, DbException, TransactionAbortedException {
-        validateTransactions(2);
+        validateTransactions(3);
     }
 
 /*    @Test public void testFiveThreads()
