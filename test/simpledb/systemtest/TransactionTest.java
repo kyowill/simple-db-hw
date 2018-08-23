@@ -96,18 +96,17 @@ public class TransactionTest extends SimpleDbTestBase {
 
                         // read the value out of the table
                         Query q1 = new Query(ss1, tr.getId());
-                        System.out.println("thread id:" + Thread.currentThread().getId());
                         q1.start();
-                        System.out.println("thread id transaction start:" + Thread.currentThread().getId());
+                        System.out.println("thread id transaction start:" + Thread.currentThread().getId() + "transaction id:" + tr.getId().getId());
                         Tuple tup = q1.next();
                         IntField intf = (IntField) tup.getField(0);
                         int i = intf.getValue();
-                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + i);
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + i + "_transaction id:" + tr.getId().getId());
                         // create a Tuple so that Insert can insert this new value
                         // into the table.
                         Tuple t = new Tuple(SystemTestUtil.SINGLE_INT_DESCRIPTOR);
                         t.setField(0, new IntField(i+1));
-                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" +( (IntField)t.getField(0)).getValue());
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" +( (IntField)t.getField(0)).getValue() + "transaction id:" + tr.getId().getId());
                         // sleep to get some interesting thread interleavings
                         Thread.sleep(1);
 
@@ -118,11 +117,11 @@ public class TransactionTest extends SimpleDbTestBase {
                         Delete delOp = new Delete(tr.getId(), ss2);
 
                         Query q2 = new Query(delOp, tr.getId());
-
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "delete start");
                         q2.start();
                         Tuple t2 = q2.next();
                         q2.close();
-                        
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "delete complete");
                         // set up a Set with a tuple that is one higher than the old one.
                         HashSet<Tuple> hs = new HashSet<Tuple>();
                         hs.add(t);
@@ -131,12 +130,13 @@ public class TransactionTest extends SimpleDbTestBase {
                         // insert this new tuple into the table
                         Insert insOp = new Insert(tr.getId(), ti, tableId);
                         Query q3 = new Query(insOp, tr.getId());
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "insert start");
                         q3.start();
                         Tuple t3 = q3.next();
                         q3.close();
-
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "insert complete");
                         tr.commit();
-                        System.out.println("tranaction commit:" + Thread.currentThread().getId());
+                        System.out.println("tranaction commit:" + Thread.currentThread().getId() + "transaction id:" + tr.getId().getId());
                         break;
                     } catch (TransactionAbortedException te) {
                         //System.out.println("thread " + tr.getId() + " killed");
