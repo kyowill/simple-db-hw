@@ -97,7 +97,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         // read the value out of the table
                         Query q1 = new Query(ss1, tr.getId());
                         q1.start();
-                        System.out.println("thread id transaction start:" + Thread.currentThread().getId() + "transaction id:" + tr.getId().getId());
+                        System.out.println("thread id transaction start:" + Thread.currentThread().getId() + "_transaction id:" + tr.getId().getId());
                         Tuple tup = q1.next();
                         IntField intf = (IntField) tup.getField(0);
                         int i = intf.getValue();
@@ -106,7 +106,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         // into the table.
                         Tuple t = new Tuple(SystemTestUtil.SINGLE_INT_DESCRIPTOR);
                         t.setField(0, new IntField(i+1));
-                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" +( (IntField)t.getField(0)).getValue() + "transaction id:" + tr.getId().getId());
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" +( (IntField)t.getField(0)).getValue() + "_transaction id:" + tr.getId().getId());
                         // sleep to get some interesting thread interleavings
                         Thread.sleep(1);
 
@@ -119,6 +119,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         Query q2 = new Query(delOp, tr.getId());
                         System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "delete start");
                         q2.start();
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "delete execute");
                         Tuple t2 = q2.next();
                         q2.close();
                         System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "delete complete");
@@ -132,6 +133,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         Query q3 = new Query(insOp, tr.getId());
                         System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "insert start");
                         q3.start();
+                        System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "insert execute");
                         Tuple t3 = q3.next();
                         q3.close();
                         System.out.println("thread id:" + Thread.currentThread().getId() + ":" + "_transaction id:" + tr.getId().getId() + "insert complete");
